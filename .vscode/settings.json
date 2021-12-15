@@ -1,0 +1,9 @@
+{
+    "python.autoComplete.extraPaths": [
+        "c:\\Users\\mateu\\.vscode\\extensions\\stefanwehr.write-your-python-program-0.14.2\\python\\src\\"
+    ],
+    "python.linting.enabled": false,
+    "python.analysis.extraPaths": [
+        "c:\\Users\\mateu\\.vscode\\extensions\\stefanwehr.write-your-python-program-0.14.2\\python\\src\\"
+    ]
+}
