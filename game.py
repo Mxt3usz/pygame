@@ -36,67 +36,16 @@ class Button():
         self.mouse = pygame.Rect(pygame.mouse.get_pos()[0],pygame.mouse.get_pos()[1],1,1)
         self.mouse_pressed = pygame.mouse.get_pressed()
 
-    def update_button(self):
+    def update_button(self,state):
         global currState
         if self.pos.colliderect(self.mouse):
             self.texture.set_alpha(75) # hover effect
             if self.mouse_pressed[0]:
-                currState = None
+                currState = state
                 
            
     def draw_button(self):
         Window.blit(self.texture,self.pos)
-
-
-class States():
-
-    def __init__(self):
-        pass
-    
-    def update():
-        pass
-
-    def draw():
-        pass
-
-currState = States()
-
-class MainMenu(States):
-
-    def __init__(self):
-        pass
-
-    def update(self):
-        pass
-
-    def draw(self):
-        start = Button(pygame.Vector2(450,100))
-        Window.fill(Black)
-        start.update_button()
-        start.draw_button()
-        
-
-class GameState(States):
-
-    def __init__(self):
-        pass
-
-    def update():
-        pass
-
-    def draw():
-        pass
-
-def draw(square,bullets,enemies):
-    Window.fill(White)
-    Window.blit(Background_Image, (0,0))
-    mouse = font.render("Mouse: "+ str(pygame.mouse.get_pos()),1,White)
-    Window.blit(mouse,(0,0))
-    Window.blit(Square_Image,(square.x,square.y))
-    for bullet in bullets:
-        Window.blit(Snowball_Image,(bullet.getpos().x,bullet.getpos().y))
-    for enemy in enemies:
-        Window.blit(Skellet_Image,(enemy.get_pos().x,enemy.get_pos().y))
 
 def movement(mouse_pos,square_purple):
     speed = 10
@@ -219,10 +168,48 @@ class Spawner:
     def spawn_enemy(self,pos):
         self.enemies += [Enemy(pos)]
 
-def Init():
-    global currState
-    currState = MainMenu
+class MainMenu():
 
+    def __init__(self):
+        pass
+
+    def update(self):
+        pass
+
+    def draw(self):
+        start = Button(pygame.Vector2(450,100))
+        Window.fill(Black)
+        start.update_button(GameState)
+        start.draw_button()
+
+currState = MainMenu()
+        
+class GameState():
+
+    def __init__(self):
+        pass
+
+    def update(enemies,hp_skellet,spawn):
+        for enemy in enemies:
+            enemy.move()
+        if len(enemies) == 0:
+            spawn.spawn_enemy(Vector2(970,370))
+            spawn.spawn_enemy(Vector2(970,270))
+            spawn.spawn_enemy(Vector2(970,170))
+
+        hp_skellet.change_health()
+        hp_skellet.is_dead()
+
+    def draw(square,bullets,enemies):
+        Window.fill(White)
+        Window.blit(Background_Image, (0,0))
+        mouse = font.render("Mouse: "+ str(pygame.mouse.get_pos()),1,White)
+        Window.blit(mouse,(0,0))
+        Window.blit(Square_Image,(square.x,square.y))
+        for bullet in bullets:
+            Window.blit(Snowball_Image,(bullet.getpos().x,bullet.getpos().y))
+        for enemy in enemies:
+            Window.blit(Skellet_Image,(enemy.get_pos().x,enemy.get_pos().y))
 
 def game_loop():
     clock = pygame.time.Clock()
@@ -234,7 +221,6 @@ def game_loop():
     enemies = []
     spawn = Spawner(enemies)
     hp_skellet = Healthbar(bullets,enemies)
-    Init()
     while in_loop:
         clock.tick(Fps)
         prev_mouse = curr_mouse
@@ -255,21 +241,13 @@ def game_loop():
                 bullet.move()    
                 bullet.remove_bullet()
         
-        for enemy in enemies:
-            enemy.move()
-        
-        if len(enemies) == 0:
-            spawn.spawn_enemy(Vector2(970,370))
-            spawn.spawn_enemy(Vector2(970,270))
-            spawn.spawn_enemy(Vector2(970,170))
-
-        movement(mouse_pos,square_purple)
-        draw(square_purple,bullets,enemies)
-        hp_skellet.change_health()
-        hp_skellet.is_dead()
-        hp_skellet.draw_health()
-        if currState != None:
-            currState.draw(currState)
+        if currState == GameState:
+            currState.update(enemies,hp_skellet,spawn)
+            movement(mouse_pos,square_purple)
+            currState.draw(square_purple,bullets,enemies)
+            hp_skellet.draw_health()
+        else:
+            currState.draw()
         pygame.display.update()
         print(currState)
     pygame.quit()
