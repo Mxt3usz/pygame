@@ -27,6 +27,66 @@ Square_Image = pygame.image.load(os.path.join("Assets","snowman_red.png"))
 Snowball_Image = pygame.image.load(os.path.join("Assets","snowball.png"))
 Skellet_Image = pygame.image.load(os.path.join("Assets","skellet.png"))
 
+Black = (0,0,0)
+class Button():
+
+    def __init__(self,pos):
+        self.texture = pygame.image.load(os.path.join("Assets","christmasButton.png"))
+        self.pos = pygame.Rect(pos.x,pos.y,self.texture.get_width(),self.texture.get_height())
+        self.mouse = pygame.Rect(pygame.mouse.get_pos()[0],pygame.mouse.get_pos()[1],1,1)
+        self.mouse_pressed = pygame.mouse.get_pressed()
+
+    def update_button(self):
+        global currState
+        if self.pos.colliderect(self.mouse):
+            self.texture.set_alpha(75) # hover effect
+            if self.mouse_pressed[0]:
+                currState = None
+                
+           
+    def draw_button(self):
+        Window.blit(self.texture,self.pos)
+
+
+class States():
+
+    def __init__(self):
+        pass
+    
+    def update():
+        pass
+
+    def draw():
+        pass
+
+currState = States()
+
+class MainMenu(States):
+
+    def __init__(self):
+        pass
+
+    def update(self):
+        pass
+
+    def draw(self):
+        start = Button(pygame.Vector2(450,100))
+        Window.fill(Black)
+        start.update_button()
+        start.draw_button()
+        
+
+class GameState(States):
+
+    def __init__(self):
+        pass
+
+    def update():
+        pass
+
+    def draw():
+        pass
+
 def draw(square,bullets,enemies):
     Window.fill(White)
     Window.blit(Background_Image, (0,0))
@@ -159,6 +219,10 @@ class Spawner:
     def spawn_enemy(self,pos):
         self.enemies += [Enemy(pos)]
 
+def Init():
+    global currState
+    currState = MainMenu
+
 
 def game_loop():
     clock = pygame.time.Clock()
@@ -170,6 +234,7 @@ def game_loop():
     enemies = []
     spawn = Spawner(enemies)
     hp_skellet = Healthbar(bullets,enemies)
+    Init()
     while in_loop:
         clock.tick(Fps)
         prev_mouse = curr_mouse
@@ -203,7 +268,10 @@ def game_loop():
         hp_skellet.change_health()
         hp_skellet.is_dead()
         hp_skellet.draw_health()
+        if currState != None:
+            currState.draw(currState)
         pygame.display.update()
+        print(currState)
     pygame.quit()
 
 
