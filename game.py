@@ -30,18 +30,19 @@ Skellet_Image = pygame.image.load(os.path.join("Assets","skellet.png"))
 Black = (0,0,0)
 class Button():
 
-    def __init__(self,pos):
-        self.texture = pygame.image.load(os.path.join("Assets","christmasButton.png"))
+    def __init__(self,pos,string,state):
+        self.texture = pygame.image.load(os.path.join("Assets",string))
         self.pos = pygame.Rect(pos.x,pos.y,self.texture.get_width(),self.texture.get_height())
         self.mouse = pygame.Rect(pygame.mouse.get_pos()[0],pygame.mouse.get_pos()[1],1,1)
         self.mouse_pressed = pygame.mouse.get_pressed()
+        self.state = state
 
-    def update_button(self,state):
+    def update_button(self):
         global currState
         if self.pos.colliderect(self.mouse):
             self.texture.set_alpha(75) # hover effect
             if self.mouse_pressed[0]:
-                currState = state
+                currState = self.state
                 
            
     def draw_button(self):
@@ -66,10 +67,10 @@ def movement(mouse_pos,square_purple):
     mouse_rect = pygame.Rect(curr_mouse[0],curr_mouse[1],1,1)
     pygame.draw.rect(Window,Red,mouse_rect)
 
-    if mouse_rect.colliderect(square_purple) and buttonDown_Left:
+    if mouse_rect.colliderect(square_purple) and pygame.mouse.get_pressed()[0]:
         selected = True
 
-    if mouse_rect.colliderect(square_purple) == False and buttonDown_Left and in_motion == False:
+    if mouse_rect.colliderect(square_purple) == False and  pygame.mouse.get_pressed()[0] and in_motion == False:
         selected = False
 
     if dist > 5 and selected:
@@ -80,21 +81,6 @@ def movement(mouse_pos,square_purple):
 
     else:
         in_motion = False
-
-def handle_mouse_input(event):
-    global buttonDown_Right
-    global buttonDown_Left
-    if event.type == MOUSEBUTTONDOWN:
-        if event.button == 3:
-            buttonDown_Right = True
-        if event.button == 1:
-            buttonDown_Left = True
-    if event.type == MOUSEBUTTONUP:
-        if event.button == 1:
-            buttonDown_Left = False
-        if event.button == 3:
-            buttonDown_Right = False
-
 
 class Bullet:
     def __init__(self,spos,mpos,bullets):
@@ -170,26 +156,21 @@ class Spawner:
 
 class MainMenu():
 
-    def __init__(self):
-        pass
-
-    def update(self):
-        pass
-
     def draw(self):
-        start = Button(pygame.Vector2(450,100))
+        start = Button(pygame.Vector2(450,150),"christmasbutton.png",GameState)
+        options = Button(pygame.Vector2(450,250),"options.png",OptionsMenu)
+        exit = Button(pygame.Vector2(450,350),"exit.png",None)
+        buttons = [start,options,exit]
         Window.fill(Black)
-        start.update_button(GameState)
-        start.draw_button()
+        for button in buttons:
+            button.update_button()
+            button.draw_button()
 
 currState = MainMenu()
         
 class GameState():
 
-    def __init__(self):
-        pass
-
-    def update(enemies,hp_skellet,spawn):
+    def update(enemies,spawn,hp):
         for enemy in enemies:
             enemy.move()
         if len(enemies) == 0:
@@ -197,10 +178,10 @@ class GameState():
             spawn.spawn_enemy(Vector2(970,270))
             spawn.spawn_enemy(Vector2(970,170))
 
-        hp_skellet.change_health()
-        hp_skellet.is_dead()
+        hp.change_health()
+        hp.is_dead()
 
-    def draw(square,bullets,enemies):
+    def draw(square,hp,bullets,enemies):
         Window.fill(White)
         Window.blit(Background_Image, (0,0))
         mouse = font.render("Mouse: "+ str(pygame.mouse.get_pos()),1,White)
@@ -210,44 +191,53 @@ class GameState():
             Window.blit(Snowball_Image,(bullet.getpos().x,bullet.getpos().y))
         for enemy in enemies:
             Window.blit(Skellet_Image,(enemy.get_pos().x,enemy.get_pos().y))
+        if len(bullets)>0:
+            for bullet in bullets:
+                bullet.move()    
+                bullet.remove_bullet()
+        hp.draw_health()
+
+class OptionsMenu():
+
+    def update(self):
+        pass
+
+    def draw(self):
+        pass
 
 def game_loop():
     clock = pygame.time.Clock()
     square_purple = pygame.Rect(300,250,Square_Image.get_width(),Square_Image.get_height())
     mouse_pos = square_purple
     curr_mouse = pygame.mouse.get_pressed()
-    in_loop = True
     bullets = []
     enemies = []
     spawn = Spawner(enemies)
-    hp_skellet = Healthbar(bullets,enemies)
-    while in_loop:
+    hp = Healthbar(bullets,enemies)
+    while True:
         clock.tick(Fps)
         prev_mouse = curr_mouse
         curr_mouse = pygame.mouse.get_pressed()
-        if not curr_mouse[2] and prev_mouse[2]:
+        if not curr_mouse[2] and prev_mouse[2] and selected:
             mouse_pos = pygame.mouse.get_pos()
         for event in pygame.event.get():
-            handle_mouse_input(event)
             if event.type == pygame.KEYDOWN:
               if event.key == pygame.K_e and len(bullets)<5:
                 bullet = Bullet(square_purple,pygame.mouse.get_pos(),bullets)
                 bullet.setAngle()
                 bullets += [bullet]
             if event.type == pygame.QUIT:
-                in_loop = False
-        if len(bullets)>0:
-            for bullet in bullets:
-                bullet.move()    
-                bullet.remove_bullet()
-        
+                pygame.quit()
+      
+        if currState == None:
+            break
         if currState == GameState:
-            currState.update(enemies,hp_skellet,spawn)
+            currState.update(enemies,spawn,hp)
             movement(mouse_pos,square_purple)
-            currState.draw(square_purple,bullets,enemies)
-            hp_skellet.draw_health()
+            currState.draw(square_purple,hp,bullets,enemies)
         else:
             currState.draw()
+    
         pygame.display.update()
         print(currState)
     pygame.quit()
