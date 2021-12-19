@@ -19,6 +19,7 @@ selected = False
 buttonDown_Right = False
 buttonDown_Left = False
 in_motion = False
+slider_selected = False
 dist = 0
 count = 0
 Background_Image = pygame.image.load(os.path.join("Assets","snowbackground.png")).convert()
@@ -26,6 +27,9 @@ Background_Image = pygame.transform.scale(Background_Image,(1000,600)).convert()
 Square_Image = pygame.image.load(os.path.join("Assets","snowman_red.png"))
 Snowball_Image = pygame.image.load(os.path.join("Assets","snowball.png"))
 Skellet_Image = pygame.image.load(os.path.join("Assets","skellet.png"))
+Slider_Head = pygame.image.load(os.path.join("Assets","sliderheadred.png"))
+Slider = pygame.image.load(os.path.join("Assets","sliderred.png"))
+slider_rect = pygame.Rect(594,92,Slider_Head.get_width(),Slider_Head.get_height())
 
 Black = (0,0,0)
 class Button():
@@ -199,11 +203,28 @@ class GameState():
 
 class OptionsMenu():
 
-    def update(self):
-        pass
-
-    def draw(self):
-        pass
+    def draw():
+        global slider_selected
+        global slider_rect
+        Window.fill(Black)
+        Window.blit(Slider,(Vector2(365,100)))
+        mouse_rect = pygame.Rect(pygame.mouse.get_pos()[0],pygame.mouse.get_pos()[1],1,1)
+        text = font.render("Game Volume",1,White)
+        Window.blit(text,(430,50))
+        if(mouse_rect.colliderect(pygame.Rect(slider_rect.x-5,slider_rect.y,slider_rect.width,slider_rect.height)) and pygame.mouse.get_pressed()[0]):
+            slider_selected = True
+        if slider_selected:
+            if slider_rect.x >= 365 and slider_rect.x <= 594:
+                slider_rect = pygame.Rect(mouse_rect.x,92,Slider_Head.get_width(),Slider_Head.get_height())
+            if mouse_rect.x >= 370 and mouse_rect.x <= 590:
+                slider_rect = pygame.Rect(mouse_rect.x,92,Slider_Head.get_width(),Slider_Head.get_height())
+            if slider_rect.x < 365:
+                slider_rect.x = 365
+            if slider_rect.x > 594:
+                slider_rect.x = 594
+        if pygame.mouse.get_pressed()[0] == False:
+            slider_selected = False
+        Window.blit(Slider_Head,(slider_rect.x,slider_rect.y))
 
 def game_loop():
     clock = pygame.time.Clock()
