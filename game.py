@@ -161,8 +161,8 @@ class Spawner:
 class MainMenu():
 
     def draw(self):
-        start = Button(pygame.Vector2(450,150),"christmasbutton.png",GameState)
-        options = Button(pygame.Vector2(450,250),"options.png",OptionsMenu)
+        start = Button(pygame.Vector2(450,150),"christmasbutton.png",GameState())
+        options = Button(pygame.Vector2(450,250),"options.png",OptionsMenu())
         exit = Button(pygame.Vector2(450,350),"exit.png",None)
         buttons = [start,options,exit]
         Window.fill(Black)
@@ -174,7 +174,7 @@ currState = MainMenu()
         
 class GameState():
 
-    def update(enemies,spawn,hp):
+    def update(self,enemies,spawn,hp):
         for enemy in enemies:
             enemy.move()
         if len(enemies) == 0:
@@ -185,7 +185,7 @@ class GameState():
         hp.change_health()
         hp.is_dead()
 
-    def draw(square,hp,bullets,enemies):
+    def draw(self,square,hp,bullets,enemies):
         Window.fill(White)
         Window.blit(Background_Image, (0,0))
         mouse = font.render("Mouse: "+ str(pygame.mouse.get_pos()),1,White)
@@ -203,11 +203,14 @@ class GameState():
 
 class OptionsMenu():
 
-    def draw():
+    def draw(self):
         global slider_selected
         global slider_rect
         Window.fill(Black)
         Window.blit(Slider,(Vector2(365,100)))
+        back = Button(pygame.Vector2(450,500),"backbutton.png",MainMenu())
+        back.update_button()
+        back.draw_button()
         mouse_rect = pygame.Rect(pygame.mouse.get_pos()[0],pygame.mouse.get_pos()[1],1,1)
         text = font.render("Game Volume",1,White)
         Window.blit(text,(430,50))
@@ -252,15 +255,17 @@ def game_loop():
       
         if currState == None:
             break
-        if currState == GameState:
+        if currState.__class__ == GameState:
             currState.update(enemies,spawn,hp)
             movement(mouse_pos,square_purple)
             currState.draw(square_purple,hp,bullets,enemies)
-        else:
+        if currState.__class__ is MainMenu:
+            currState.draw()
+        if currState.__class__ is OptionsMenu:
+            print("Hi")
             currState.draw()
     
         pygame.display.update()
-        print(currState)
     pygame.quit()
 
 
