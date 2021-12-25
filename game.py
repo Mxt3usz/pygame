@@ -16,8 +16,10 @@ buttonDown_Right = False
 buttonDown_Left = False
 in_motion = False
 slider_selected = False
+in_pause = False
 dist = 0
 count = 0
+escape_count = 0
 Background_Image = pygame.image.load(os.path.join("Assets","snowbackground.png")).convert()
 Background_Image = pygame.transform.scale(Background_Image,(1000,600)).convert()
 Square_Image = pygame.image.load(os.path.join("Assets","snowman_red.png"))
@@ -33,6 +35,7 @@ class Button():
     def __init__(self,pos,string,state):
         self.texture = pygame.image.load(os.path.join("Assets",string))
         self.pos = pygame.Rect(pos.x,pos.y,self.texture.get_width(),self.texture.get_height())
+        self.string = string
         self.mouse = pygame.Rect(pygame.mouse.get_pos()[0],pygame.mouse.get_pos()[1],1,1)
         self.mouse_pressed = pygame.mouse.get_pressed()
         self.state = state
@@ -43,9 +46,14 @@ class Button():
             self.texture.set_alpha(75) # hover effect
             if self.mouse_pressed[0]:
                 currState = self.state
+                if self.string == "resume.png": # count also escape count if resume was pressed
+                    global escape_count
+                    escape_count += 1
+                if self.string == "menubutton.png":
+                    global in_pause
+                    in_pause = False
+                    escape_count += 1
         
-                
-           
     def draw_button(self):
         Window.blit(self.texture,self.pos)
 
@@ -184,6 +192,10 @@ class GameState():
         hp.is_dead()
 
     def draw(self,square,hp,bullets,enemies):
+        global currState
+        global escape_count
+        if escape_count % 2 != 0: # check also if ESC wasnt pressed so for example if options were entered
+            currState = PauseMenu() # through pausemenu and back was pressed the pausemenu should still appear
         Window.fill(White)
         Window.blit(Background_Image, (0,0))
         mouse = font.render("Mouse: "+ str(pygame.mouse.get_pos()),1,White)
@@ -198,6 +210,7 @@ class GameState():
                 bullet.move()    
                 bullet.remove_bullet()
         hp.draw_health()
+        
 
 class OptionsMenu():
 
@@ -207,6 +220,8 @@ class OptionsMenu():
         Window.fill(Black)
         Window.blit(Slider,(Vector2(365,100)))
         back = Button(pygame.Vector2(450,500),"backbutton.png",MainMenu())
+        if in_pause:
+            back = Button(pygame.Vector2(450,500),"backbutton.png",GameState())
         back.update_button()
         back.draw_button()
         mouse_rect = pygame.Rect(pygame.mouse.get_pos()[0],pygame.mouse.get_pos()[1],1,1)
@@ -256,9 +271,14 @@ class AchievementHandler():
 class PauseMenu():
 
     def draw(self):
-        resume = Button(pygame.Vector2(450,150),"christmasbutton.png",GameState())
-        options = Button(pygame.Vector2(450,250),"options.png",OptionsMenu())
-        menu = Button(pygame.Vector2(450,350),"menubutton.png",MainMenu())
+        Window.blit(pygame.image.load(os.path.join("Assets","pause.png")),(350,50))
+        resume = Button(pygame.Vector2(450,200),"resume.png",GameState())
+        options = Button(pygame.Vector2(450,300),"options.png",OptionsMenu())
+        menu = Button(pygame.Vector2(450,400),"menubutton.png",MainMenu())
+        lst = [resume,options,menu]
+        for button in lst:
+            button.update_button()
+            button.draw_button()
 
 def game_loop():
     clock = pygame.time.Clock()
@@ -269,6 +289,9 @@ def game_loop():
     enemies = []
     spawn = Spawner(enemies)
     hp = Healthbar(bullets,enemies)
+    global currState
+    global escape_count
+    global in_pause
     while True:
         clock.tick(Fps)
         prev_mouse = curr_mouse
@@ -281,9 +304,16 @@ def game_loop():
                 bullet = Bullet(square_purple,pygame.mouse.get_pos(),bullets)
                 bullet.setAngle()
                 bullets += [bullet]
+              if event.key == pygame.K_ESCAPE and (currState.__class__ == GameState or currState.__class__ == PauseMenu): # switch to PauseMenu if ESC pressed
+                  escape_count += 1
+                  if escape_count % 2 == 0: # if escape pressed again switch to GameState again
+                      currState = GameState()
+                      in_pause = False
+                  else:
+                    currState = PauseMenu() 
+                    in_pause = True
             if event.type == pygame.QUIT:
                 pygame.quit()
-      
         if currState == None:
             break
         if currState.__class__ == GameState:
@@ -293,6 +323,7 @@ def game_loop():
         else:
             currState.draw()
         pygame.display.update()
+        print(escape_count)
     pygame.quit()
 
 
