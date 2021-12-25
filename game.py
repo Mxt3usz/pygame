@@ -245,12 +245,20 @@ class AchievementMenu():
         
 
 class AchievementHandler():
+
     def __init__(self,string,pos):
         self.texture = pygame.transform.scale(pygame.image.load(os.path.join("Assets",string)),(50,50))
         self.pos = pos
 
     def draw(self):
         Window.blit(self.texture,self.pos)
+
+class PauseMenu():
+
+    def draw(self):
+        resume = Button(pygame.Vector2(450,150),"christmasbutton.png",GameState())
+        options = Button(pygame.Vector2(450,250),"options.png",OptionsMenu())
+        menu = Button(pygame.Vector2(450,350),"menubutton.png",MainMenu())
 
 def game_loop():
     clock = pygame.time.Clock()
