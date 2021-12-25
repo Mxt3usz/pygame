@@ -1,12 +1,8 @@
-from typing import Tuple
 import os
 import pygame
 pygame.font.init()
 import math
 from pygame import Vector2
-from pygame import Rect, mouse
-from pygame.constants import BUTTON_RIGHT, KEYDOWN, MOUSEBUTTONDOWN, MOUSEBUTTONUP, K_e
-from pygame.draw import rect
 
 Width, Height = 1000,600
 Window = pygame.display.set_mode((Width,Height))
@@ -47,6 +43,7 @@ class Button():
             self.texture.set_alpha(75) # hover effect
             if self.mouse_pressed[0]:
                 currState = self.state
+        
                 
            
     def draw_button(self):
@@ -163,8 +160,9 @@ class MainMenu():
     def draw(self):
         start = Button(pygame.Vector2(450,150),"christmasbutton.png",GameState())
         options = Button(pygame.Vector2(450,250),"options.png",OptionsMenu())
-        exit = Button(pygame.Vector2(450,350),"exit.png",None)
-        buttons = [start,options,exit]
+        achievement = Button(pygame.Vector2(450,350),"achievements.png",AchievementMenu())
+        exit = Button(pygame.Vector2(450,450),"exit.png",None)
+        buttons = [start,options,achievement,exit]
         Window.fill(Black)
         for button in buttons:
             button.update_button()
@@ -229,6 +227,31 @@ class OptionsMenu():
             slider_selected = False
         Window.blit(Slider_Head,(slider_rect.x,slider_rect.y))
 
+
+class AchievementMenu():
+    
+    def draw(self):
+        Window.fill(Black)
+        back = Button(pygame.Vector2(450,500),"backbutton.png",MainMenu())
+        back.update_button()
+        back.draw_button()
+        hourglassL = AchievementHandler("hourglassLockedD.png",Vector2(100,50))
+        olympicL = AchievementHandler("olympiclocked.png",Vector2(100,150))
+        moonL = AchievementHandler("moonlocked.png",Vector2(100,250))
+        skelletL = AchievementHandler("skelletheadlocked.png",Vector2(100,350))
+        lst = [hourglassL,olympicL,moonL,skelletL]
+        for achievement in lst:
+            achievement.draw()
+        
+
+class AchievementHandler():
+    def __init__(self,string,pos):
+        self.texture = pygame.transform.scale(pygame.image.load(os.path.join("Assets",string)),(50,50))
+        self.pos = pos
+
+    def draw(self):
+        Window.blit(self.texture,self.pos)
+
 def game_loop():
     clock = pygame.time.Clock()
     square_purple = pygame.Rect(300,250,Square_Image.get_width(),Square_Image.get_height())
@@ -259,12 +282,8 @@ def game_loop():
             currState.update(enemies,spawn,hp)
             movement(mouse_pos,square_purple)
             currState.draw(square_purple,hp,bullets,enemies)
-        if currState.__class__ is MainMenu:
+        else:
             currState.draw()
-        if currState.__class__ is OptionsMenu:
-            print("Hi")
-            currState.draw()
-    
         pygame.display.update()
     pygame.quit()
 
