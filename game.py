@@ -29,6 +29,19 @@ Slider_Head = pygame.image.load(os.path.join("Assets","sliderheadred.png"))
 Slider = pygame.image.load(os.path.join("Assets","sliderred.png"))
 slider_rect = pygame.Rect(594,92,Slider_Head.get_width(),Slider_Head.get_height())
 
+"""
+AchievementGlobals
+"""
+locked1 = True
+playedtime = 0
+locked2 = True
+meterwalked = 0
+locked3 = True
+nightspassed = 0
+locked4 = True
+skelletskilled = 0
+
+
 Black = (0,0,0)
 class Button():
 
@@ -146,9 +159,11 @@ class Healthbar:
                         self.bullets.remove(bullet)
 
     def is_dead(self):
+        global skelletskilled
         for enemy in self.enemies:
             if enemy.hp <= 0:
                 self.enemies.remove(enemy)
+                skelletskilled += 1
 
     def draw_health(self):
         for enemy in self.enemies:
@@ -250,23 +265,48 @@ class AchievementMenu():
         back = Button(pygame.Vector2(450,500),"backbutton.png",MainMenu())
         back.update_button()
         back.draw_button()
-        hourglassL = AchievementHandler("hourglassLockedD.png",Vector2(100,50))
-        olympicL = AchievementHandler("olympiclocked.png",Vector2(100,150))
-        moonL = AchievementHandler("moonlocked.png",Vector2(100,250))
-        skelletL = AchievementHandler("skelletheadlocked.png",Vector2(100,350))
+        global locked1
+        global playedtime
+        global locked2
+        global meterwalked
+        global locked3
+        global nightspassed
+        global locked4
+        global skelletskilled
+        hourglassL = AchievementHandler("hourglassLockedD.png","hourglassS.png",Vector2(100,50),playedtime,locked1)
+        olympicL = AchievementHandler("olympiclocked.png","olympic.png",Vector2(100,150),meterwalked,locked2)
+        moonL = AchievementHandler("moonlocked.png","moon.png",Vector2(100,250),nightspassed,locked3)
+        skelletL = AchievementHandler("skelletheadlocked.png","skelletevil.png",Vector2(100,350),skelletskilled,locked4)
         lst = [hourglassL,olympicL,moonL,skelletL]
         for achievement in lst:
+            achievement.check_condition()
             achievement.draw()
         
 
 class AchievementHandler():
 
-    def __init__(self,string,pos):
-        self.texture = pygame.transform.scale(pygame.image.load(os.path.join("Assets",string)),(50,50))
+    def __init__(self,stringlocked,string,pos,condition,locked):
+        self.stringlocked = stringlocked
+        self.string = string
+        self.texture = pygame.transform.scale(pygame.image.load(os.path.join("Assets",stringlocked)),(50,50))
         self.pos = pos
+        self.condition = condition
+        self.locked = locked
 
+    def check_condition(self):
+        global locked1 
+        global locked2
+        global locked3 
+        global locked4
+
+        if self.stringlocked == "skelletheadlocked.png" and self.condition == 10  and self.locked:
+            locked4 = False
+        
     def draw(self):
+        if self.locked == False:
+            self.texture = pygame.transform.scale(pygame.image.load(os.path.join("Assets",self.string)),(50,50))
         Window.blit(self.texture,self.pos)
+    
 
 class PauseMenu():
 
@@ -323,7 +363,6 @@ def game_loop():
         else:
             currState.draw()
         pygame.display.update()
-        print(escape_count)
     pygame.quit()
 
 
