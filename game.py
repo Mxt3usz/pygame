@@ -1,24 +1,24 @@
 import os
 import pygame
+import time
 pygame.font.init()
 import math
 from pygame import Vector2
-
+import datetime
 Width, Height = 1000,600
 Window = pygame.display.set_mode((Width,Height))
 pygame.display.set_caption("First PyGame")
 White = (255,255,255)
 Red = (255,0,0)
 Fps = 60
-font = pygame.font.SysFont("comicsans",20)
+font = pygame.font.Font("upheavtt.ttf",20)
 selected = False
 buttonDown_Right = False
 buttonDown_Left = False
-in_motion = False
+has_walked = False
 slider_selected = False
 in_pause = False
-dist = 0
-count = 0
+in_motion = False
 escape_count = 0
 Background_Image = pygame.image.load(os.path.join("Assets","snowbackground.png")).convert()
 Background_Image = pygame.transform.scale(Background_Image,(1000,600)).convert()
@@ -28,18 +28,6 @@ Skellet_Image = pygame.image.load(os.path.join("Assets","skellet.png"))
 Slider_Head = pygame.image.load(os.path.join("Assets","sliderheadred.png"))
 Slider = pygame.image.load(os.path.join("Assets","sliderred.png"))
 slider_rect = pygame.Rect(594,92,Slider_Head.get_width(),Slider_Head.get_height())
-
-"""
-AchievementGlobals
-"""
-locked1 = True
-playedtime = 0
-locked2 = True
-meterwalked = 0
-locked3 = True
-nightspassed = 0
-locked4 = True
-skelletskilled = 0
 
 
 Black = (0,0,0)
@@ -71,14 +59,29 @@ class Button():
         Window.blit(self.texture,self.pos)
 
 def movement(mouse_pos,square_purple):
-    speed = 10
-    global count
+
+    """
+    This function is repsonible for the movement of the snowman.
+    The has_walked is there so we dont move the snowman by clicking him
+    at the first time, the offset has to be counted to his pos because otherwise
+    he doesnt move to the center of the mouse but to the upper left.
+    The direction is calculated by comparing the current mouse with the current
+    snowman pos by also considering the angle. The selected bool keeps track of when
+    the snowman is able to move, if the mouse rect collides with the snowmans rect
+    and the left mouse button is clicked the snowman is selected, only then 
+    he is able to move if the right mouse button was pressed. Note that you only
+    can deselect the snowman if he isnt moving rn, deselecting means stopping the current
+    move operation so if you would try to reselect the snowman he would try to move to the 
+    direction you sent him to before.
+    """
     global selected
-    global dist
+    global has_walked
     global in_motion
+    speed = 10
+    dist = 0
     curr_mouse = pygame.mouse.get_pos()
     mouse_vec = Vector2(mouse_pos[0],mouse_pos[1])
-    if count > 1:
+    if has_walked:
         square_vec = Vector2(square_purple.x+Square_Image.get_width()//2,square_purple.y+Square_Image.get_height()//2)
 
     else:
@@ -87,7 +90,6 @@ def movement(mouse_pos,square_purple):
     direction = mouse_vec - square_vec
     angle = math.atan2(direction.x,direction.y)
     mouse_rect = pygame.Rect(curr_mouse[0],curr_mouse[1],1,1)
-    pygame.draw.rect(Window,Red,mouse_rect)
 
     if mouse_rect.colliderect(square_purple) and pygame.mouse.get_pressed()[0]:
         selected = True
@@ -98,10 +100,9 @@ def movement(mouse_pos,square_purple):
     if dist > 5 and selected:
         square_purple.x += speed * math.sin(angle)
         square_purple.y += speed * math.cos(angle)
+        has_walked = True
         in_motion = True
-        count += 1
-
-    else:
+    if dist < 5:
         in_motion = False
 
 class Bullet:
@@ -159,11 +160,11 @@ class Healthbar:
                         self.bullets.remove(bullet)
 
     def is_dead(self):
-        global skelletskilled
+        global achievement_lst
         for enemy in self.enemies:
             if enemy.hp <= 0:
+                achievement_lst[3].condition += 1
                 self.enemies.remove(enemy)
-                skelletskilled += 1
 
     def draw_health(self):
         for enemy in self.enemies:
@@ -259,54 +260,110 @@ class OptionsMenu():
 
 
 class AchievementMenu():
-    
+
+    global achievement_lst
     def draw(self):
         Window.fill(Black)
-        back = Button(pygame.Vector2(450,500),"backbutton.png",MainMenu())
+        Window.blit(pygame.transform.scale(pygame.image.load(os.path.join("Assets","infoground.png")),(900,80)),(50,0))
+        Window.blit(pygame.transform.scale(pygame.image.load(os.path.join("Assets","achievementbar.png")),(225,10)),(650,40))
+        Window.blit(pygame.transform.scale(pygame.image.load(os.path.join("Assets","achievementfilled.png")),(225*((collected_achievements()/0.04)/100),10)),(650,40))
+        Window.blit(font.render(str(collected_achievements()) + " out of 4 " +"Achievements unlocked",1,White),(590,10))
+        Window.blit(font.render(str(collected_achievements()/0.04)+ "%",1,White),(885,35))
+        Window.blit(font.render("Total play time : " + str(math.floor((achievement_lst[0].condition/60))/100)+" h",1,White),(50,10))
+        back = Button(pygame.Vector2(0,550),"backbutton.png",MainMenu())
         back.update_button()
         back.draw_button()
-        global locked1
-        global playedtime
-        global locked2
-        global meterwalked
-        global locked3
-        global nightspassed
-        global locked4
-        global skelletskilled
-        hourglassL = AchievementHandler("hourglassLockedD.png","hourglassS.png",Vector2(100,50),playedtime,locked1)
-        olympicL = AchievementHandler("olympiclocked.png","olympic.png",Vector2(100,150),meterwalked,locked2)
-        moonL = AchievementHandler("moonlocked.png","moon.png",Vector2(100,250),nightspassed,locked3)
-        skelletL = AchievementHandler("skelletheadlocked.png","skelletevil.png",Vector2(100,350),skelletskilled,locked4)
-        lst = [hourglassL,olympicL,moonL,skelletL]
-        for achievement in lst:
-            achievement.check_condition()
+        for achievement in achievement_lst:
             achievement.draw()
         
 
-class AchievementHandler():
+class AchievementCreator():
 
-    def __init__(self,stringlocked,string,pos,condition,locked):
+    def __init__(self,stringlocked,string,pos,condition,date,health,name,summary):
         self.stringlocked = stringlocked
         self.string = string
-        self.texture = pygame.transform.scale(pygame.image.load(os.path.join("Assets",stringlocked)),(50,50))
         self.pos = pos
         self.condition = condition
-        self.locked = locked
+        self.date = date
+        self.health = health
+        self.textground = pygame.transform.scale(pygame.image.load(os.path.join("Assets","textground.png")),(750,40))
+        self.name = name
+        self.summary = font.render(summary,1,White)
 
-    def check_condition(self):
-        global locked1 
-        global locked2
-        global locked3 
-        global locked4
-
-        if self.stringlocked == "skelletheadlocked.png" and self.condition == 10  and self.locked:
-            locked4 = False
-        
     def draw(self):
-        if self.locked == False:
+        if self.date == "":
+            self.texture = pygame.transform.scale(pygame.image.load(os.path.join("Assets",self.stringlocked)),(50,50))
+        if self.date != "":
             self.texture = pygame.transform.scale(pygame.image.load(os.path.join("Assets",self.string)),(50,50))
+      
         Window.blit(self.texture,self.pos)
-    
+        Window.blit(self.textground,(self.pos.x + 60,self.pos.y + 5))
+        Window.blit(font.render(self.name,1,White),(self.pos.x + 80,self.pos.y +5))
+        Window.blit(self.summary,(self.pos.x + 80,self.pos.y + 25))
+        Window.blit(font.render(self.date,1,White),(self.pos.x + 600,self.pos.y + 15))
+
+def calc_meters_walked(new_pos):
+   
+    """
+    This function calculates the meters walked by the snowman
+    everytime the snowman moves we look at his position,
+    if this position doesnt correlate to
+    the current pos we can say that he moved and we can calculate
+    the distance between these Vector2's. If the new pos x and y coordinates
+    are bigger than the current coordinates we just make the distance positive
+    again because there cant be a negative distance. At the end we set the
+    new pos to the current pos.
+    """
+    global curr_pos
+    global achievement_lst
+    distance = Vector2(0,0)
+    if curr_pos != Vector2(new_pos.x,new_pos.y):
+        distance = curr_pos - Vector2(new_pos.x,new_pos.y)
+        if curr_pos.x < new_pos.x:
+            distance.x *= -1
+        if curr_pos.y < new_pos.y:
+            distance.y *= -1
+        curr_pos = Vector2(new_pos.x,new_pos.y)
+        achievement_lst[1].condition += (distance.x + distance.y) / 100
+
+def achievement_unlocked():
+    global achievement_lst
+    now = datetime.datetime.now()
+    for achievement in achievement_lst:
+        if achievement.date == "":
+            if achievement.name == "Never Ending Fun" and achievement.condition >= 60:
+                achievement.date = now.strftime("%y-%m-%d %H:%M:%S")
+            if achievement.name == "Marathon" and achievement.condition >= 1000:
+                achievement.date = now.strftime("%y-%m-%d %H:%M:%S")
+            if achievement.name == "Oppressor" and achievement.condition == 10:
+                achievement.date = now.strftime("%y-%m-%d %H:%M:%S")
+        else:
+            if achievement.health > 0:
+                achievement_unlocked_draw(achievement)
+
+def achievement_unlocked_draw(achievement):
+        offset = (450,380)
+        if achievement.name == "Never Ending Fun":
+            offset = (420,380)
+        Window.blit(font.render("Achievement",1,White),(440,450))
+        Window.blit(font.render(achievement.name,1,White),offset)
+        Window.blit(pygame.transform.scale(pygame.image.load(os.path.join("Assets",achievement.string)),(50,50)),(475,400))
+        achievement.health -= 1
+
+def collected_achievements():
+    global achievement_lst
+    count = 0
+    for achievement in achievement_lst:
+        if achievement.date != "":
+            count += 1
+    return count
+
+"""
+AchievementGlobals
+"""
+curr_pos = Vector2(300,250)
+achievement_lst = [AchievementCreator("hourglassLockedD.png","hourglassS.png",Vector2(100,150),0,"",100,"Never Ending Fun","Play for 1 minute."),AchievementCreator("olympiclocked.png","olympic.png",Vector2(100,250),0,"",100,"Marathon","Walk for 100 meters.")
+,AchievementCreator("moonlocked.png","moon.png",Vector2(100,350),0,"",100,"Survivor","Survive 3 nights."),AchievementCreator("skelletheadlocked.png","skelletevil.png",Vector2(100,450),0,"",100,"Oppressor","Kill 10 skelletons.")]
 
 class PauseMenu():
 
@@ -321,6 +378,9 @@ class PauseMenu():
             button.draw_button()
 
 def game_loop():
+    """
+    Simple game loop which handles keyboard input and in which state the player currently is.
+    """
     clock = pygame.time.Clock()
     square_purple = pygame.Rect(300,250,Square_Image.get_width(),Square_Image.get_height())
     mouse_pos = square_purple
@@ -332,6 +392,9 @@ def game_loop():
     global currState
     global escape_count
     global in_pause
+    global achievement_lst
+    start_time = 0
+    load_achievements(achievement_lst)
     while True:
         clock.tick(Fps)
         prev_mouse = curr_mouse
@@ -353,17 +416,62 @@ def game_loop():
                     currState = PauseMenu() 
                     in_pause = True
             if event.type == pygame.QUIT:
-                pygame.quit()
+                currState = None
         if currState == None:
+            save_achievements(achievement_lst)
             break
         if currState.__class__ == GameState:
+            if start_time == 0:
+                start_time = time.time()
+            achievement_lst[0].condition = time.time() - start_time
             currState.update(enemies,spawn,hp)
             movement(mouse_pos,square_purple)
+            calc_meters_walked(square_purple)
             currState.draw(square_purple,hp,bullets,enemies)
+            achievement_unlocked()
         else:
+            start_time = time.time() - achievement_lst[0].condition
             currState.draw()
         pygame.display.update()
     pygame.quit()
+
+
+def save_achievements(achievement_lst):
+    """
+    Goes through the achievement list and saves all important infos
+    in a .txt file separated by ,
+    """
+    with open("achievementsinfo.txt","w") as file:
+        for achievement in achievement_lst:
+            file.write("," + str(achievement.condition) + "," + achievement.date + "," + str(achievement.health))
+        file.close()
+
+
+
+def load_achievements(achievement_lst):
+    """
+    After saving the achievement infos we can retrieve them with the load function.
+    Herefor we go through the .txt file and split the line whenever there is a , and we put it into a list.
+    After we put all relevant infos in the list we go through it and assign the indexes
+    to the correlating achievement attributes, we use the fact that every achievement has 3 attributes to our advantage.
+    The curr_achievement counter keeps track of which achievement we are overwriting rn.
+    """
+    curr_achievement = 0
+    try:
+        with open("achievementsinfo.txt","r") as file:
+            for line in file:
+                split_comma = line.split(",")
+                    
+            for info in range(1,len(split_comma)): #start from 1 because at index 0 is ","
+                if info % 3 == 0:
+                    achievement_lst[curr_achievement].health = int(split_comma[info])
+                    achievement_lst[curr_achievement].date = split_comma[info-1]
+                    achievement_lst[curr_achievement].condition = float(split_comma[info-2])
+                    curr_achievement += 1
+            file.close()
+    except:
+        file.close()
+        
 
 
 if __name__ == "__main__":
