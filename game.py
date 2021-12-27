@@ -15,16 +15,11 @@ font = pygame.font.Font("upheavtt.ttf",20)
 selected = False
 buttonDown_Right = False
 buttonDown_Left = False
-has_walked = False
 slider_selected = False
 in_pause = False
-in_motion = False
 escape_count = 0
 Background_Image = pygame.image.load(os.path.join("Assets","snowbackground.png")).convert()
 Background_Image = pygame.transform.scale(Background_Image,(1000,600)).convert()
-Square_Image = pygame.image.load(os.path.join("Assets","snowman_red.png"))
-Snowball_Image = pygame.image.load(os.path.join("Assets","snowball.png"))
-Skellet_Image = pygame.image.load(os.path.join("Assets","skellet.png"))
 Slider_Head = pygame.image.load(os.path.join("Assets","sliderheadred.png"))
 Slider = pygame.image.load(os.path.join("Assets","sliderred.png"))
 slider_rect = pygame.Rect(594,92,Slider_Head.get_width(),Slider_Head.get_height())
@@ -58,92 +53,111 @@ class Button():
     def draw_button(self):
         Window.blit(self.texture,self.pos)
 
-def movement(mouse_pos,square_purple):
-
-    """
-    This function is repsonible for the movement of the snowman.
-    The has_walked is there so we dont move the snowman by clicking him
-    at the first time, the offset has to be counted to his pos because otherwise
-    he doesnt move to the center of the mouse but to the upper left.
-    The direction is calculated by comparing the current mouse with the current
-    snowman pos by also considering the angle. The selected bool keeps track of when
-    the snowman is able to move, if the mouse rect collides with the snowmans rect
-    and the left mouse button is clicked the snowman is selected, only then 
-    he is able to move if the right mouse button was pressed. Note that you only
-    can deselect the snowman if he isnt moving rn, deselecting means stopping the current
-    move operation so if you would try to reselect the snowman he would try to move to the 
-    direction you sent him to before.
-    """
-    global selected
-    global has_walked
-    global in_motion
-    speed = 10
-    dist = 0
-    curr_mouse = pygame.mouse.get_pos()
-    mouse_vec = Vector2(mouse_pos[0],mouse_pos[1])
-    if has_walked:
-        square_vec = Vector2(square_purple.x+Square_Image.get_width()//2,square_purple.y+Square_Image.get_height()//2)
-
-    else:
-        square_vec = Vector2(square_purple.x,square_purple.y)
-    dist = Vector2.distance_to(mouse_vec,square_vec)
-    direction = mouse_vec - square_vec
-    angle = math.atan2(direction.x,direction.y)
-    mouse_rect = pygame.Rect(curr_mouse[0],curr_mouse[1],1,1)
-
-    if mouse_rect.colliderect(square_purple) and pygame.mouse.get_pressed()[0]:
-        selected = True
-
-    if mouse_rect.colliderect(square_purple) == False and  pygame.mouse.get_pressed()[0] and in_motion == False:
-        selected = False
-
-    if dist > 5 and selected:
-        square_purple.x += speed * math.sin(angle)
-        square_purple.y += speed * math.cos(angle)
-        has_walked = True
-        in_motion = True
-    if dist < 5:
-        in_motion = False
 
 class Bullet:
     def __init__(self,spos,mpos,bullets):
+        self.texture = pygame.image.load(os.path.join("Assets","snowball.png"))
         self.spos = spos
         self.mpos = mpos
         self.vel = 6
         self.pos = pygame.Rect(spos.x + spos.width//2,spos.y + spos.height//2,15,15)
         self.direction = Vector2(mpos[0],mpos[1]) - Vector2(spos.x,spos.y)
-        self.angle = 0
-        self.bullets = bullets
-
-    def setAngle(self):
         self.angle = math.atan2(self.direction.x,self.direction.y)
+        self.bullets = bullets
 
     def move(self):
         self.pos.x += self.vel * math.sin(self.angle)
         self.pos.y += self.vel * math.cos(self.angle)
 
-    def getpos(self):
-        return self.pos
-
     def remove_bullet(self):
-        for bullet in self.bullets:
-            if bullet.getpos().x >= 1000 or bullet.getpos().x <= 0:
-                self.bullets.remove(bullet)
-            if bullet.getpos().y <= 0 or bullet.getpos().y >= 600:
-                self.bullets.remove(bullet)
+        if self.pos.x >= 1000 or self.pos.x <= 0:
+            self.bullets.remove(self)
+        if self.pos.y <= 0 or self.pos.y >= 600:
+            self.bullets.remove(self)
+
+    def update(self):
+        self.move()
+        self.remove_bullet()
+
+    def draw(self):
+          for bullet in self.bullets:
+            Window.blit(self.texture,(bullet.pos.x,bullet.pos.y))
 
 class Enemy:
     def __init__(self,pos):
-        self.pos = pygame.Rect(pos.x,pos.y,Skellet_Image.get_width(),Skellet_Image.get_height())
+        self.texture = pygame.image.load(os.path.join("Assets","skellet.png"))
+        self.pos = pygame.Rect(pos.x,pos.y,self.texture.get_width(),self.texture.get_height())
         self.vel = 8
         self.hp = 48
         self.dmg = 10
 
+    def move(self):
+        self.pos.x -= 1
+
+    def draw(self):
+        Window.blit(self.texture,(self.pos.x,self.pos.y))
+
+
+class Player:
+    def __init__(self):
+        self.texture = pygame.image.load(os.path.join("Assets","snowman_red.png"))
+        self.pos = pygame.Rect(300,250,self.texture.get_width(),self.texture.get_height())
+        self.vel = 10
+        self.hp = 48
+        self.dmg = 10
+        self.dist = 0
+        self.in_motion = False
+        self.has_walked = False
+    
     def get_pos(self):
         return self.pos
 
-    def move(self):
-        self.pos.x -= 1
+    def set_Healthbar(self):
+        pass
+
+    def movement(self,mouse_pos):
+        """
+        This function is repsonible for the movement of the snowman.
+        The has_walked is there so we dont move the snowman by clicking him
+        at the first time, the offset has to be counted to his pos because otherwise
+        he doesnt move to the center of the mouse but to the upper left.
+        The direction is calculated by comparing the current mouse with the current
+        snowman pos by also considering the angle. The selected bool keeps track of when
+        the snowman is able to move, if the mouse rect collides with the snowmans rect
+        and the left mouse button is clicked the snowman is selected, only then 
+        he is able to move if the right mouse button was pressed. Note that you only
+        can deselect the snowman if he isnt moving rn, deselecting means stopping the current
+        move operation so if you would try to reselect the snowman he would try to move to the 
+        direction you sent him to before.
+        """
+        global selected
+        curr_mouse = pygame.mouse.get_pos()
+        mouse_vec = Vector2(mouse_pos[0],mouse_pos[1])
+        if self.has_walked:
+            player_vec = Vector2(self.pos.x + self.texture.get_width()/2,self.pos.y + self.texture.get_height()/2)
+        else:
+            player_vec = Vector2(self.pos.x,self.pos.y)
+        dist = Vector2.distance_to(mouse_vec,player_vec)
+        direction = mouse_vec - player_vec
+        angle = math.atan2(direction.x,direction.y)
+        mouse_rect = pygame.Rect(curr_mouse[0],curr_mouse[1],1,1)
+
+        if mouse_rect.colliderect(self.pos) and pygame.mouse.get_pressed()[0]:
+            selected = True
+
+        if mouse_rect.colliderect(self.pos) == False and pygame.mouse.get_pressed()[0] and self.in_motion == False:
+            selected = False
+
+        if dist > 5 and selected:
+            self.pos.x += self.vel * math.sin(angle)
+            self.pos.y += self.vel * math.cos(angle)
+            self.has_walked = True
+            self.in_motion = True
+        if dist < 5:
+            self.in_motion = False
+    
+    def draw(self):
+        Window.blit(self.texture,(self.pos.x,self.pos.y))
 
 class Healthbar:
     def __init__(self,bullets,enemies):
@@ -196,18 +210,21 @@ currState = MainMenu()
         
 class GameState():
 
-    def update(self,enemies,spawn,hp):
+    def update(self,enemies,spawn,hp,bullets):
         for enemy in enemies:
             enemy.move()
         if len(enemies) == 0:
             spawn.spawn_enemy(Vector2(970,370))
             spawn.spawn_enemy(Vector2(970,270))
             spawn.spawn_enemy(Vector2(970,170))
+        for bullet in bullets:
+            bullet.update()
 
         hp.change_health()
         hp.is_dead()
+        
 
-    def draw(self,square,hp,bullets,enemies):
+    def draw(self,hp,enemies,bullets):
         global currState
         global escape_count
         if escape_count % 2 != 0: # check also if ESC wasnt pressed so for example if options were entered
@@ -216,15 +233,10 @@ class GameState():
         Window.blit(Background_Image, (0,0))
         mouse = font.render("Mouse: "+ str(pygame.mouse.get_pos()),1,White)
         Window.blit(mouse,(0,0))
-        Window.blit(Square_Image,(square.x,square.y))
-        for bullet in bullets:
-            Window.blit(Snowball_Image,(bullet.getpos().x,bullet.getpos().y))
         for enemy in enemies:
-            Window.blit(Skellet_Image,(enemy.get_pos().x,enemy.get_pos().y))
-        if len(bullets)>0:
-            for bullet in bullets:
-                bullet.move()    
-                bullet.remove_bullet()
+            enemy.draw()
+        for bullet in bullets:
+            bullet.draw()
         hp.draw_health()
         
 
@@ -382,8 +394,6 @@ def game_loop():
     Simple game loop which handles keyboard input and in which state the player currently is.
     """
     clock = pygame.time.Clock()
-    square_purple = pygame.Rect(300,250,Square_Image.get_width(),Square_Image.get_height())
-    mouse_pos = square_purple
     curr_mouse = pygame.mouse.get_pressed()
     bullets = []
     enemies = []
@@ -394,6 +404,8 @@ def game_loop():
     global in_pause
     global achievement_lst
     start_time = 0
+    player = Player()
+    mouse_pos = player.get_pos()
     load_achievements(achievement_lst)
     while True:
         clock.tick(Fps)
@@ -404,8 +416,7 @@ def game_loop():
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
               if event.key == pygame.K_e and len(bullets)<5:
-                bullet = Bullet(square_purple,pygame.mouse.get_pos(),bullets)
-                bullet.setAngle()
+                bullet = Bullet(player.get_pos(),pygame.mouse.get_pos(),bullets)
                 bullets += [bullet]
               if event.key == pygame.K_ESCAPE and (currState.__class__ == GameState or currState.__class__ == PauseMenu): # switch to PauseMenu if ESC pressed
                   escape_count += 1
@@ -424,10 +435,11 @@ def game_loop():
             if start_time == 0:
                 start_time = time.time()
             achievement_lst[0].condition = time.time() - start_time
-            currState.update(enemies,spawn,hp)
-            movement(mouse_pos,square_purple)
-            calc_meters_walked(square_purple)
-            currState.draw(square_purple,hp,bullets,enemies)
+            currState.update(enemies,spawn,hp,bullets)
+            player.movement(mouse_pos)
+            calc_meters_walked(player.get_pos())
+            currState.draw(hp,enemies,bullets)
+            player.draw()
             achievement_unlocked()
         else:
             start_time = time.time() - achievement_lst[0].condition
@@ -470,7 +482,7 @@ def load_achievements(achievement_lst):
                     curr_achievement += 1
             file.close()
     except:
-        file.close()
+        return None
         
 
 
