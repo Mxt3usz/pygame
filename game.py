@@ -14,8 +14,11 @@ Fps = 60
 font = pygame.font.Font("upheavtt.ttf",20)
 in_pause = False
 shoot = False
+night = False
 escape_count = 0
 Black = (0,0,0)
+day_night_timer = 0
+clock_time = 0
 
 
 class Button():
@@ -62,10 +65,13 @@ class Bullet:
         self.pos.y += self.vel * math.cos(self.angle)
 
     def remove_bullet(self):
-        if self.pos.x >= 1000 or self.pos.x <= 0:
-            self.bullets.remove(self)
-        if self.pos.y <= 0 or self.pos.y >= 600:
-            self.bullets.remove(self)
+        try:
+            if self.pos.x >= 1000 or self.pos.x <= 0:
+                self.bullets.remove(self)
+            if self.pos.y <= 0 or self.pos.y >= 600:
+                self.bullets.remove(self)
+        except:
+            pass
 
     def update(self):
         self.move()
@@ -76,19 +82,31 @@ class Bullet:
             Window.blit(self.texture,(bullet.pos.x,bullet.pos.y))
 
 class Enemy:
-    def __init__(self,pos,enemies):
+    def __init__(self,pos,enemies,player_pos):
         self.texture = pygame.image.load(os.path.join("Assets","skellet.png"))
         self.pos = pygame.Rect(pos.x,pos.y,self.texture.get_width(),self.texture.get_height())
-        self.vel = 8
+        self.vel = 2
         self.hp = 48
         self.enemies = enemies
+        self.player_pos = player_pos
 
     def set_healthbar(self):
         healthbar = Healthbar(self)
         healthbar.draw_health()
 
+    def get_pos(self):
+        return Vector2(self.pos.x,self.pos.y)
+
+
     def move(self):
-        self.pos.x -= 1
+        """
+        We determine distance between player and enemy and apply angle onto it,
+        this makes the enemy follow the player.
+        """
+        direction = Vector2(self.player_pos.x,self.player_pos.y) - Vector2(self.pos.x,self.pos.y)
+        angle = math.atan2(direction.x,direction.y)
+        self.pos.x += self.vel * math.sin(angle)
+        self.pos.y += self.vel * math.cos(angle)
 
     def is_dead(self):
         if self.hp <= 0:
@@ -210,10 +228,20 @@ class GameState():
     def draw(self,gameobjectmanager):
         global currState
         global escape_count
+        global night
+        global day_night_timer
+        global clock_time
         if escape_count % 2 != 0: # check also if ESC wasnt pressed so for example if options were entered
             currState = PauseMenu() # through pausemenu and back was pressed the pausemenu should still appear
-        Window.fill(White)
         Window.blit(self.Background_Image, (0,0))
+        if round(day_night_timer) == 20 or night: #20 secs day
+            Window.fill(Black)
+            if night == False:
+                clock_time = 0
+            night = True
+        if night and round(day_night_timer) == 10: #10 secs night
+            night = False
+            clock_time = 0
         mouse = font.render("Mouse: "+ str(pygame.mouse.get_pos()),1,White)
         Window.blit(mouse,(0,0))
         gameobjectmanager.draw()
@@ -265,7 +293,7 @@ class AchievementMenu():
         Window.blit(font.render(str(collected_achievements()) + " out of 4 " +"Achievements unlocked",1,White),(590,10))
         Window.blit(font.render(str(collected_achievements()/0.04)+ "%",1,White),(885,35))
         Window.blit(font.render("Total play time : " + str(math.floor((achievement_lst[0].condition/60))/100)+" h",1,White),(50,10))
-        back = Button(pygame.Vector2(0,550),"backbutton.png",MainMenu())
+        back = Button(pygame.Vector2(450,550),"backbutton.png",MainMenu())
         back.update_button()
         back.draw_button()
         for achievement in achievement_lst:
@@ -369,17 +397,20 @@ class PauseMenu():
             button.update_button()
             button.draw_button()
 
+
 class Gameobjectmanager():
     """
     Handles all the methods from the objects in the game.
     """
     def __init__(self):
-        self.enemylist = []
         self.bulletlist = []
         self.player = Player()
+        self.enemylist = []
+
 
     def spawn_enemy(self,pos):
-        self.enemylist += [Enemy(pos,self.enemylist)]
+        enemy = Enemy(pos,self.enemylist,self.player.get_pos())
+        self.enemylist += [enemy]
 
     def spawn_bullet(self):
         global shoot
@@ -387,26 +418,58 @@ class Gameobjectmanager():
             self.bulletlist += [Bullet(self.player.get_pos(),pygame.mouse.get_pos(),self.bulletlist)]
             shoot = False
 
+    def handle_collision(self):
+        """
+        The enemies have to keep a certain distance between eachother.
+        """
+        for enemy in range(len(self.enemylist)):
+            if enemy + 1 < len(self.enemylist):
+                if Vector2.distance_to(self.enemylist[enemy].get_pos(),self.enemylist[enemy+1].get_pos()) < 90:
+                    self.enemylist[enemy].pos.x += 1 # <- magical force
+                    self.enemylist[enemy+1].pos.x -= 1
+
     def handle_bullet_enemy_collision(self):
-        for bullet in self.bulletlist:
-            bullet.update()
         for bullet in self.bulletlist:
             for enemy in self.enemylist:
                 if bullet.pos.colliderect(enemy.pos):
                     enemy.hp -= 10
-                    self.bulletlist.remove(bullet)
+                    try:
+                        self.bulletlist.remove(bullet)
+                    except:
+                        pass
 
     def update(self):
+        global night
+        global day_night_timer
         self.spawn_bullet()
         self.player.movement()
         calc_meters_walked(self.player.get_pos())
+        for bullet in self.bulletlist:
+            bullet.update()
         for enemy in self.enemylist:
             enemy.update()
+        self.handle_collision()
         self.handle_bullet_enemy_collision()
-        if len(self.enemylist) == 0:
+        """
+        At day spawns every 6 secs one Wave so in total 4 Waves
+        """
+        if night == False and len(self.enemylist) < 3 and round(day_night_timer) % 6 == 0:
             self.spawn_enemy(Vector2(970,370))
             self.spawn_enemy(Vector2(970,270))
             self.spawn_enemy(Vector2(970,170))
+        
+        """
+        At Night spawns every 4 secs one Wave so in total 3 Waves
+        """
+        if night and round(day_night_timer) % 4 == 0 and len(self.enemylist) < 4:
+            # spawn left
+            self.spawn_enemy(Vector2(170,170))
+            # spawn right
+            self.spawn_enemy(Vector2(970,370))
+            # spawn top
+            self.spawn_enemy(Vector2(370,0))
+            # spawn bottom
+            self.spawn_enemy(Vector2(670,600))
 
     def draw(self):
         self.player.draw()
@@ -447,16 +510,25 @@ def game_loop():
             save_achievements()
             break
         if currState.__class__ == GameState:
+            """
+            start_time is total time, clock time is time played (not saved)
+            """
+            global clock_time
             if start_time == 0:
                 start_time = time.time()
+            if clock_time == 0:
+                clock_time = time.time()
             achievement_lst[0].condition = time.time() - start_time
+            global day_night_timer
+            day_night_timer = time.time() - clock_time
             currState.update(gameobjectmanager)
             currState.draw(gameobjectmanager)
         else:
             start_time = time.time() - achievement_lst[0].condition
+            clock_time = time.time() - day_night_timer
             currState.draw()
         pygame.display.update()
-        print(achievement_lst[0].condition)
+        
     pygame.quit()
 
 
@@ -493,7 +565,7 @@ def load_achievements():
                     curr_achievement += 1
             file.close()
     except:
-        return None
+        pass
         
 
 if __name__ == "__main__":
