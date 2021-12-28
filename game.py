@@ -84,17 +84,34 @@ class Bullet:
             Window.blit(self.texture,(bullet.pos.x,bullet.pos.y))
 
 class Enemy:
-    def __init__(self,pos):
+    def __init__(self,pos,enemies):
         self.texture = pygame.image.load(os.path.join("Assets","skellet.png"))
         self.pos = pygame.Rect(pos.x,pos.y,self.texture.get_width(),self.texture.get_height())
         self.vel = 8
         self.hp = 48
         self.dmg = 10
+        self.enemies = enemies
+
+    def set_healthbar(self):
+        healthbar = Healthbar(self.pos,self.hp,"enemy")
+        healthbar.draw_health()
 
     def move(self):
         self.pos.x -= 1
 
+    def is_dead(self):
+        global achievement_lst
+        if self.hp <= 0:
+            achievement_lst[3].condition += 1
+            self.enemies.remove(self)
+
+    def update(self):
+        self.move()
+        self.is_dead()
+
     def draw(self):
+        if self.hp > 0:
+            self.set_healthbar()
         Window.blit(self.texture,(self.pos.x,self.pos.y))
 
 
@@ -113,7 +130,8 @@ class Player:
         return self.pos
 
     def set_Healthbar(self):
-        pass
+        healthbar = Healthbar(self.pos,self.hp,"player")
+        healthbar.draw_health()
 
     def movement(self,mouse_pos):
         """
@@ -157,41 +175,31 @@ class Player:
             self.in_motion = False
     
     def draw(self):
+        self.set_Healthbar()
         Window.blit(self.texture,(self.pos.x,self.pos.y))
 
 class Healthbar:
-    def __init__(self,bullets,enemies):
+    def __init__(self,pos,hp,type):
+        self.pos = pos
+        self.hp = hp
+        self.type = type
         self.texture = pygame.image.load(os.path.join("Assets","healthground.png"))
-        self.health = pygame.image.load(os.path.join("Assets","health.png"))
-        self.bullets = bullets
-        self.enemies = enemies
-
-    def change_health(self):
-        for bullet in self.bullets:
-            for enemy in self.enemies:
-                if bullet.pos.colliderect(enemy.pos):
-                        enemy.hp -= 10
-                        self.bullets.remove(bullet)
-
-    def is_dead(self):
-        global achievement_lst
-        for enemy in self.enemies:
-            if enemy.hp <= 0:
-                achievement_lst[3].condition += 1
-                self.enemies.remove(enemy)
-
+        self.healthtexture = pygame.transform.scale(pygame.image.load(os.path.join("Assets","health.png")),(self.hp,3))
+    
     def draw_health(self):
-        for enemy in self.enemies:
-            Window.blit(self.texture,(enemy.pos.x -7,enemy.pos.y -7))
-            self.health = pygame.transform.scale(self.health,(enemy.hp,3)) #change healthbar according to enemy.healh
-            Window.blit(self.health,(enemy.pos.x -6,enemy.pos.y -6))
+        if self.type == "player":
+            Window.blit(self.texture,(self.pos.x+1,self.pos.y -6))
+            Window.blit(self.healthtexture,(self.pos.x+2,self.pos.y -5))
+        else:
+            Window.blit(self.texture,(self.pos.x -7,self.pos.y -7))
+            Window.blit(self.healthtexture,(self.pos.x -6,self.pos.y -6)) #change healthbar according to enemy.health
 
 class Spawner:
     def __init__(self,enemies):
         self.enemies = enemies
 
     def spawn_enemy(self,pos):
-        self.enemies += [Enemy(pos)]
+        self.enemies += [Enemy(pos,self.enemies)]
 
 class MainMenu():
 
@@ -210,21 +218,22 @@ currState = MainMenu()
         
 class GameState():
 
-    def update(self,enemies,spawn,hp,bullets):
+    def update(self,enemies,spawn,bullets):
         for enemy in enemies:
-            enemy.move()
+            enemy.update()
         if len(enemies) == 0:
             spawn.spawn_enemy(Vector2(970,370))
             spawn.spawn_enemy(Vector2(970,270))
             spawn.spawn_enemy(Vector2(970,170))
         for bullet in bullets:
             bullet.update()
+        for bullet in bullets:
+            for enemy in enemies:
+                if bullet.pos.colliderect(enemy.pos):
+                    enemy.hp -= 10
+                    bullets.remove(bullet)
 
-        hp.change_health()
-        hp.is_dead()
-        
-
-    def draw(self,hp,enemies,bullets):
+    def draw(self,enemies,bullets):
         global currState
         global escape_count
         if escape_count % 2 != 0: # check also if ESC wasnt pressed so for example if options were entered
@@ -237,7 +246,6 @@ class GameState():
             enemy.draw()
         for bullet in bullets:
             bullet.draw()
-        hp.draw_health()
         
 
 class OptionsMenu():
@@ -398,7 +406,6 @@ def game_loop():
     bullets = []
     enemies = []
     spawn = Spawner(enemies)
-    hp = Healthbar(bullets,enemies)
     global currState
     global escape_count
     global in_pause
@@ -435,10 +442,10 @@ def game_loop():
             if start_time == 0:
                 start_time = time.time()
             achievement_lst[0].condition = time.time() - start_time
-            currState.update(enemies,spawn,hp,bullets)
+            currState.update(enemies,spawn,bullets)
             player.movement(mouse_pos)
             calc_meters_walked(player.get_pos())
-            currState.draw(hp,enemies,bullets)
+            currState.draw(enemies,bullets)
             player.draw()
             achievement_unlocked()
         else:
