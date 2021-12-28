@@ -93,7 +93,7 @@ class Enemy:
         self.enemies = enemies
 
     def set_healthbar(self):
-        healthbar = Healthbar(self.pos,self.hp,"enemy")
+        healthbar = Healthbar(self)
         healthbar.draw_health()
 
     def move(self):
@@ -130,7 +130,7 @@ class Player:
         return self.pos
 
     def set_Healthbar(self):
-        healthbar = Healthbar(self.pos,self.hp,"player")
+        healthbar = Healthbar(self)
         healthbar.draw_health()
 
     def movement(self,mouse_pos):
@@ -179,20 +179,18 @@ class Player:
         Window.blit(self.texture,(self.pos.x,self.pos.y))
 
 class Healthbar:
-    def __init__(self,pos,hp,type):
-        self.pos = pos
-        self.hp = hp
-        self.type = type
+    def __init__(self,gameobject):
+        self.gameobject = gameobject
         self.texture = pygame.image.load(os.path.join("Assets","healthground.png"))
-        self.healthtexture = pygame.transform.scale(pygame.image.load(os.path.join("Assets","health.png")),(self.hp,3))
+        self.healthtexture = pygame.transform.scale(pygame.image.load(os.path.join("Assets","health.png")),(gameobject.hp,3))
     
     def draw_health(self):
-        if self.type == "player":
-            Window.blit(self.texture,(self.pos.x+1,self.pos.y -6))
-            Window.blit(self.healthtexture,(self.pos.x+2,self.pos.y -5))
+        if self.gameobject.__class__ == "Player":
+            Window.blit(self.texture,(self.gameobject.pos.x+1,self.gameobject.pos.y -6))
+            Window.blit(self.healthtexture,(self.gameobject.pos.x+2,self.gameobject.pos.y -5))
         else:
-            Window.blit(self.texture,(self.pos.x -7,self.pos.y -7))
-            Window.blit(self.healthtexture,(self.pos.x -6,self.pos.y -6)) #change healthbar according to enemy.health
+            Window.blit(self.texture,(self.gameobject.pos.x -7,self.gameobject.pos.y -7))
+            Window.blit(self.healthtexture,(self.gameobject.pos.x -6,self.gameobject.pos.y -6)) #change healthbar according to enemy.health
 
 class Spawner:
     def __init__(self,enemies):
