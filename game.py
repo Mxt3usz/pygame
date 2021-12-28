@@ -241,6 +241,7 @@ class GameState():
             night = True
         if night and round(day_night_timer) == 10: #10 secs night
             night = False
+            achievement_lst[2].condition += 1
             clock_time = 0
         mouse = font.render("Mouse: "+ str(pygame.mouse.get_pos()),1,White)
         Window.blit(mouse,(0,0))
@@ -355,6 +356,8 @@ def achievement_unlocked():
             if achievement.name == "Never Ending Fun" and achievement.condition >= 60:
                 achievement.date = now.strftime("%y-%m-%d %H:%M:%S")
             if achievement.name == "Marathon" and achievement.condition >= 1000:
+                achievement.date = now.strftime("%y-%m-%d %H:%M:%S")
+            if achievement.name == "Survivor" and achievement.condition == 3:
                 achievement.date = now.strftime("%y-%m-%d %H:%M:%S")
             if achievement.name == "Oppressor" and achievement.condition == 50:
                 achievement.date = now.strftime("%y-%m-%d %H:%M:%S")
