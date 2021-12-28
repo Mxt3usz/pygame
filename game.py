@@ -12,19 +12,12 @@ White = (255,255,255)
 Red = (255,0,0)
 Fps = 60
 font = pygame.font.Font("upheavtt.ttf",20)
-selected = False
-slider_selected = False
 in_pause = False
 shoot = False
 escape_count = 0
-Background_Image = pygame.image.load(os.path.join("Assets","snowbackground.png")).convert()
-Background_Image = pygame.transform.scale(Background_Image,(1000,600)).convert()
-Slider_Head = pygame.image.load(os.path.join("Assets","sliderheadred.png"))
-Slider = pygame.image.load(os.path.join("Assets","sliderred.png"))
-slider_rect = pygame.Rect(594,92,Slider_Head.get_width(),Slider_Head.get_height())
-
-
 Black = (0,0,0)
+
+
 class Button():
 
     def __init__(self,pos,string,state):
@@ -123,6 +116,7 @@ class Player:
         self.has_walked = False
         self.mouse_pos = self.pos
         self.curr_mouse_pressed = pygame.mouse.get_pressed()
+        self.selected = False
     
     def get_pos(self):
         return self.pos
@@ -146,10 +140,9 @@ class Player:
         move operation so if you would try to reselect the snowman he would try to move to the 
         direction you sent him to before.
         """
-        global selected
         prev_mouse_pressed = self.curr_mouse_pressed
         self.curr_mouse_pressed = pygame.mouse.get_pressed()
-        if not self.curr_mouse_pressed[2] and prev_mouse_pressed[2] and selected:
+        if not self.curr_mouse_pressed[2] and prev_mouse_pressed[2] and self.selected:
             self.mouse_pos = pygame.mouse.get_pos()
         curr_mouse = pygame.mouse.get_pos()
         mouse_vec = Vector2(self.mouse_pos[0],self.mouse_pos[1])
@@ -162,10 +155,10 @@ class Player:
         angle = math.atan2(direction.x,direction.y)
         mouse_rect = pygame.Rect(curr_mouse[0],curr_mouse[1],1,1)
         if mouse_rect.colliderect(self.pos) and pygame.mouse.get_pressed()[0]:
-            selected = True
+            self.selected = True
         if mouse_rect.colliderect(self.pos) == False and pygame.mouse.get_pressed()[0] and self.in_motion == False:
-            selected = False
-        if dist > 5 and selected:
+            self.selected = False
+        if dist > 5 and self.selected:
             self.pos.x += self.vel * math.sin(angle)
             self.pos.y += self.vel * math.cos(angle)
             self.has_walked = True
@@ -207,7 +200,10 @@ class MainMenu():
 currState = MainMenu()
         
 class GameState():
-    
+
+    def __init__(self):
+        self.Background_Image = pygame.transform.scale(pygame.image.load(os.path.join("Assets","snowbackground.png")),(1000,600)).convert()
+
     def update(self,gameobjectmanager):
         gameobjectmanager.update()
         
@@ -217,7 +213,7 @@ class GameState():
         if escape_count % 2 != 0: # check also if ESC wasnt pressed so for example if options were entered
             currState = PauseMenu() # through pausemenu and back was pressed the pausemenu should still appear
         Window.fill(White)
-        Window.blit(Background_Image, (0,0))
+        Window.blit(self.Background_Image, (0,0))
         mouse = font.render("Mouse: "+ str(pygame.mouse.get_pos()),1,White)
         Window.blit(mouse,(0,0))
         gameobjectmanager.draw()
@@ -226,11 +222,15 @@ class GameState():
 
 class OptionsMenu():
 
+    def __init__(self):
+        self.Slider_Head = pygame.image.load(os.path.join("Assets","sliderheadred.png"))
+        self.Slider = pygame.image.load(os.path.join("Assets","sliderred.png"))
+        self.slider_selected = False
+        self.slider_rect = pygame.Rect(594,92,self.Slider_Head.get_width(),self.Slider_Head.get_height())
+
     def draw(self):
-        global slider_selected
-        global slider_rect
         Window.fill(Black)
-        Window.blit(Slider,(Vector2(365,100)))
+        Window.blit(self.Slider,(Vector2(365,100)))
         back = Button(pygame.Vector2(450,500),"backbutton.png",MainMenu())
         if in_pause:
             back = Button(pygame.Vector2(450,500),"backbutton.png",GameState())
@@ -239,20 +239,20 @@ class OptionsMenu():
         mouse_rect = pygame.Rect(pygame.mouse.get_pos()[0],pygame.mouse.get_pos()[1],1,1)
         text = font.render("Game Volume",1,White)
         Window.blit(text,(430,50))
-        if(mouse_rect.colliderect(pygame.Rect(slider_rect.x-5,slider_rect.y,slider_rect.width,slider_rect.height)) and pygame.mouse.get_pressed()[0]):
-            slider_selected = True
-        if slider_selected:
-            if slider_rect.x >= 365 and slider_rect.x <= 594:
-                slider_rect = pygame.Rect(mouse_rect.x,92,Slider_Head.get_width(),Slider_Head.get_height())
+        if(mouse_rect.colliderect(pygame.Rect(self.slider_rect.x-5,self.slider_rect.y,self.slider_rect.width,self.slider_rect.height)) and pygame.mouse.get_pressed()[0]):
+            self.slider_selected = True
+        if self.slider_selected:
+            if self.slider_rect.x >= 365 and self.slider_rect.x <= 594:
+                self.slider_rect = pygame.Rect(mouse_rect.x,92,self.Slider_Head.get_width(),self.Slider_Head.get_height())
             if mouse_rect.x >= 370 and mouse_rect.x <= 590:
-                slider_rect = pygame.Rect(mouse_rect.x,92,Slider_Head.get_width(),Slider_Head.get_height())
-            if slider_rect.x < 365:
-                slider_rect.x = 365
-            if slider_rect.x > 594:
-                slider_rect.x = 594
+                self.slider_rect = pygame.Rect(mouse_rect.x,92,self.Slider_Head.get_width(),self.Slider_Head.get_height())
+            if self.slider_rect.x < 365:
+                self.slider_rect.x = 365
+            if self.slider_rect.x > 594:
+                self.slider_rect.x = 594
         if pygame.mouse.get_pressed()[0] == False:
-            slider_selected = False
-        Window.blit(Slider_Head,(slider_rect.x,slider_rect.y))
+            self.slider_selected = False
+        Window.blit(self.Slider_Head,(self.slider_rect.x,self.slider_rect.y))
 
 
 class AchievementMenu():
