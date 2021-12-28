@@ -89,7 +89,6 @@ class Enemy:
         self.pos = pygame.Rect(pos.x,pos.y,self.texture.get_width(),self.texture.get_height())
         self.vel = 8
         self.hp = 48
-        self.dmg = 10
         self.enemies = enemies
 
     def set_healthbar(self):
@@ -121,7 +120,6 @@ class Player:
         self.pos = pygame.Rect(300,250,self.texture.get_width(),self.texture.get_height())
         self.vel = 10
         self.hp = 48
-        self.dmg = 10
         self.dist = 0
         self.in_motion = False
         self.has_walked = False
@@ -135,7 +133,7 @@ class Player:
 
     def movement(self,mouse_pos):
         """
-        This function is repsonible for the movement of the snowman.
+        This method is repsonible for the movement of the snowman.
         The has_walked is there so we dont move the snowman by clicking him
         at the first time, the offset has to be counted to his pos because otherwise
         he doesnt move to the center of the mouse but to the upper left.
@@ -185,12 +183,12 @@ class Healthbar:
         self.healthtexture = pygame.transform.scale(pygame.image.load(os.path.join("Assets","health.png")),(gameobject.hp,3))
     
     def draw_health(self):
-        if self.gameobject.__class__ == "Player":
-            Window.blit(self.texture,(self.gameobject.pos.x+1,self.gameobject.pos.y -6))
-            Window.blit(self.healthtexture,(self.gameobject.pos.x+2,self.gameobject.pos.y -5))
+        if self.gameobject.__class__ == Player:
+            Window.blit(self.texture,(self.gameobject.pos.x,self.gameobject.pos.y - 6))
+            Window.blit(self.healthtexture,(self.gameobject.pos.x + 1,self.gameobject.pos.y - 5))
         else:
-            Window.blit(self.texture,(self.gameobject.pos.x -7,self.gameobject.pos.y -7))
-            Window.blit(self.healthtexture,(self.gameobject.pos.x -6,self.gameobject.pos.y -6)) #change healthbar according to enemy.health
+            Window.blit(self.texture,(self.gameobject.pos.x - 7,self.gameobject.pos.y - 7))
+            Window.blit(self.healthtexture,(self.gameobject.pos.x - 6,self.gameobject.pos.y - 6)) #change healthbar according to enemy.health
 
 class Spawner:
     def __init__(self,enemies):
@@ -462,7 +460,6 @@ def save_achievements(achievement_lst):
         for achievement in achievement_lst:
             file.write("," + str(achievement.condition) + "," + achievement.date + "," + str(achievement.health))
         file.close()
-
 
 
 def load_achievements(achievement_lst):
