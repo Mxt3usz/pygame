@@ -386,7 +386,7 @@ AchievementGlobals
 """
 curr_pos = Vector2(300,250)
 achievement_lst = [AchievementCreator("hourglassLockedD.png","hourglassS.png",Vector2(100,150),0,"",100,"Never Ending Fun","Play for 1 minute."),AchievementCreator("olympiclocked.png","olympic.png",Vector2(100,250),0,"",100,"Marathon","Walk for 1000 meters.")
-,AchievementCreator("moonlocked.png","moon.png",Vector2(100,350),0,"",100,"Survivor","Survive 3 nights."),AchievementCreator("skelletheadlocked.png","skelletevil.png",Vector2(100,450),0,"",100,"Oppressor","Kill 50 skelletons.")]
+,AchievementCreator("moon50locked.png","moon50.png",Vector2(100,350),0,"",100,"Survivor","Survive 3 nights."),AchievementCreator("skelletheadlocked.png","skelletevil.png",Vector2(100,450),0,"",100,"Oppressor","Kill 50 skelletons.")]
 
 class PauseMenu():
 
