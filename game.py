@@ -17,6 +17,7 @@ buttonDown_Right = False
 buttonDown_Left = False
 slider_selected = False
 in_pause = False
+shoot = False
 escape_count = 0
 Background_Image = pygame.image.load(os.path.join("Assets","snowbackground.png")).convert()
 Background_Image = pygame.transform.scale(Background_Image,(1000,600)).convert()
@@ -99,7 +100,6 @@ class Enemy:
         self.pos.x -= 1
 
     def is_dead(self):
-        global achievement_lst
         if self.hp <= 0:
             achievement_lst[3].condition += 1
             self.enemies.remove(self)
@@ -123,6 +123,8 @@ class Player:
         self.dist = 0
         self.in_motion = False
         self.has_walked = False
+        self.mouse_pos = self.pos
+        self.curr_mouse_pressed = pygame.mouse.get_pressed()
     
     def get_pos(self):
         return self.pos
@@ -131,7 +133,7 @@ class Player:
         healthbar = Healthbar(self)
         healthbar.draw_health()
 
-    def movement(self,mouse_pos):
+    def movement(self):
         """
         This method is repsonible for the movement of the snowman.
         The has_walked is there so we dont move the snowman by clicking him
@@ -147,8 +149,12 @@ class Player:
         direction you sent him to before.
         """
         global selected
+        prev_mouse_pressed = self.curr_mouse_pressed
+        self.curr_mouse_pressed = pygame.mouse.get_pressed()
+        if not self.curr_mouse_pressed[2] and prev_mouse_pressed[2] and selected:
+            self.mouse_pos = pygame.mouse.get_pos()
         curr_mouse = pygame.mouse.get_pos()
-        mouse_vec = Vector2(mouse_pos[0],mouse_pos[1])
+        mouse_vec = Vector2(self.mouse_pos[0],self.mouse_pos[1])
         if self.has_walked:
             player_vec = Vector2(self.pos.x + self.texture.get_width()/2,self.pos.y + self.texture.get_height()/2)
         else:
@@ -157,13 +163,10 @@ class Player:
         direction = mouse_vec - player_vec
         angle = math.atan2(direction.x,direction.y)
         mouse_rect = pygame.Rect(curr_mouse[0],curr_mouse[1],1,1)
-
         if mouse_rect.colliderect(self.pos) and pygame.mouse.get_pressed()[0]:
             selected = True
-
         if mouse_rect.colliderect(self.pos) == False and pygame.mouse.get_pressed()[0] and self.in_motion == False:
             selected = False
-
         if dist > 5 and selected:
             self.pos.x += self.vel * math.sin(angle)
             self.pos.y += self.vel * math.cos(angle)
@@ -190,13 +193,6 @@ class Healthbar:
             Window.blit(self.texture,(self.gameobject.pos.x - 7,self.gameobject.pos.y - 7))
             Window.blit(self.healthtexture,(self.gameobject.pos.x - 6,self.gameobject.pos.y - 6)) #change healthbar according to enemy.health
 
-class Spawner:
-    def __init__(self,enemies):
-        self.enemies = enemies
-
-    def spawn_enemy(self,pos):
-        self.enemies += [Enemy(pos,self.enemies)]
-
 class MainMenu():
 
     def draw(self):
@@ -213,23 +209,11 @@ class MainMenu():
 currState = MainMenu()
         
 class GameState():
-
-    def update(self,enemies,spawn,bullets):
-        for enemy in enemies:
-            enemy.update()
-        if len(enemies) == 0:
-            spawn.spawn_enemy(Vector2(970,370))
-            spawn.spawn_enemy(Vector2(970,270))
-            spawn.spawn_enemy(Vector2(970,170))
-        for bullet in bullets:
-            bullet.update()
-        for bullet in bullets:
-            for enemy in enemies:
-                if bullet.pos.colliderect(enemy.pos):
-                    enemy.hp -= 10
-                    bullets.remove(bullet)
-
-    def draw(self,enemies,bullets):
+    
+    def update(self,gameobjectmanager):
+        gameobjectmanager.update()
+        
+    def draw(self,gameobjectmanager):
         global currState
         global escape_count
         if escape_count % 2 != 0: # check also if ESC wasnt pressed so for example if options were entered
@@ -238,10 +222,8 @@ class GameState():
         Window.blit(Background_Image, (0,0))
         mouse = font.render("Mouse: "+ str(pygame.mouse.get_pos()),1,White)
         Window.blit(mouse,(0,0))
-        for enemy in enemies:
-            enemy.draw()
-        for bullet in bullets:
-            bullet.draw()
+        gameobjectmanager.draw()
+        achievement_unlocked()
         
 
 class OptionsMenu():
@@ -277,7 +259,6 @@ class OptionsMenu():
 
 class AchievementMenu():
 
-    global achievement_lst
     def draw(self):
         Window.fill(Black)
         Window.blit(pygame.transform.scale(pygame.image.load(os.path.join("Assets","infoground.png")),(900,80)),(50,0))
@@ -331,7 +312,6 @@ def calc_meters_walked(new_pos):
     new pos to the current pos.
     """
     global curr_pos
-    global achievement_lst
     distance = Vector2(0,0)
     if curr_pos != Vector2(new_pos.x,new_pos.y):
         distance = curr_pos - Vector2(new_pos.x,new_pos.y)
@@ -343,7 +323,6 @@ def calc_meters_walked(new_pos):
         achievement_lst[1].condition += (distance.x + distance.y) / 100
 
 def achievement_unlocked():
-    global achievement_lst
     now = datetime.datetime.now()
     for achievement in achievement_lst:
         if achievement.date == "":
@@ -351,7 +330,7 @@ def achievement_unlocked():
                 achievement.date = now.strftime("%y-%m-%d %H:%M:%S")
             if achievement.name == "Marathon" and achievement.condition >= 1000:
                 achievement.date = now.strftime("%y-%m-%d %H:%M:%S")
-            if achievement.name == "Oppressor" and achievement.condition == 10:
+            if achievement.name == "Oppressor" and achievement.condition == 50:
                 achievement.date = now.strftime("%y-%m-%d %H:%M:%S")
         else:
             if achievement.health > 0:
@@ -367,7 +346,6 @@ def achievement_unlocked_draw(achievement):
         achievement.health -= 1
 
 def collected_achievements():
-    global achievement_lst
     count = 0
     for achievement in achievement_lst:
         if achievement.date != "":
@@ -378,8 +356,8 @@ def collected_achievements():
 AchievementGlobals
 """
 curr_pos = Vector2(300,250)
-achievement_lst = [AchievementCreator("hourglassLockedD.png","hourglassS.png",Vector2(100,150),0,"",100,"Never Ending Fun","Play for 1 minute."),AchievementCreator("olympiclocked.png","olympic.png",Vector2(100,250),0,"",100,"Marathon","Walk for 100 meters.")
-,AchievementCreator("moonlocked.png","moon.png",Vector2(100,350),0,"",100,"Survivor","Survive 3 nights."),AchievementCreator("skelletheadlocked.png","skelletevil.png",Vector2(100,450),0,"",100,"Oppressor","Kill 10 skelletons.")]
+achievement_lst = [AchievementCreator("hourglassLockedD.png","hourglassS.png",Vector2(100,150),0,"",100,"Never Ending Fun","Play for 1 minute."),AchievementCreator("olympiclocked.png","olympic.png",Vector2(100,250),0,"",100,"Marathon","Walk for 1000 meters.")
+,AchievementCreator("moonlocked.png","moon.png",Vector2(100,350),0,"",100,"Survivor","Survive 3 nights."),AchievementCreator("skelletheadlocked.png","skelletevil.png",Vector2(100,450),0,"",100,"Oppressor","Kill 50 skelletons.")]
 
 class PauseMenu():
 
@@ -393,34 +371,70 @@ class PauseMenu():
             button.update_button()
             button.draw_button()
 
+class Gameobjectmanager():
+    """
+    Handles all the methods from the objects in the game.
+    """
+    def __init__(self):
+        self.enemylist = []
+        self.bulletlist = []
+        self.player = Player()
+
+    def spawn_enemy(self,pos):
+        self.enemylist += [Enemy(pos,self.enemylist)]
+
+    def spawn_bullet(self):
+        global shoot
+        if shoot and len(self.bulletlist) < 5:
+            self.bulletlist += [Bullet(self.player.get_pos(),pygame.mouse.get_pos(),self.bulletlist)]
+            shoot = False
+
+    def handle_bullet_enemy_collision(self):
+        for bullet in self.bulletlist:
+            bullet.update()
+        for bullet in self.bulletlist:
+            for enemy in self.enemylist:
+                if bullet.pos.colliderect(enemy.pos):
+                    enemy.hp -= 10
+                    self.bulletlist.remove(bullet)
+
+    def update(self):
+        self.spawn_bullet()
+        self.player.movement()
+        calc_meters_walked(self.player.get_pos())
+        for enemy in self.enemylist:
+            enemy.update()
+        self.handle_bullet_enemy_collision()
+        if len(self.enemylist) == 0:
+            self.spawn_enemy(Vector2(970,370))
+            self.spawn_enemy(Vector2(970,270))
+            self.spawn_enemy(Vector2(970,170))
+
+    def draw(self):
+        self.player.draw()
+        for enemy in self.enemylist:
+            enemy.draw()
+        for bullet in self.bulletlist:
+            bullet.draw()
+
 def game_loop():
     """
     Simple game loop which handles keyboard input and in which state the player currently is.
     """
     clock = pygame.time.Clock()
-    curr_mouse = pygame.mouse.get_pressed()
-    bullets = []
-    enemies = []
-    spawn = Spawner(enemies)
+    gameobjectmanager = Gameobjectmanager()
     global currState
     global escape_count
     global in_pause
-    global achievement_lst
+    global shoot
     start_time = 0
-    player = Player()
-    mouse_pos = player.get_pos()
-    load_achievements(achievement_lst)
+    load_achievements()
     while True:
         clock.tick(Fps)
-        prev_mouse = curr_mouse
-        curr_mouse = pygame.mouse.get_pressed()
-        if not curr_mouse[2] and prev_mouse[2] and selected:
-            mouse_pos = pygame.mouse.get_pos()
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
-              if event.key == pygame.K_e and len(bullets)<5:
-                bullet = Bullet(player.get_pos(),pygame.mouse.get_pos(),bullets)
-                bullets += [bullet]
+              if event.key == pygame.K_e:
+                  shoot = True
               if event.key == pygame.K_ESCAPE and (currState.__class__ == GameState or currState.__class__ == PauseMenu): # switch to PauseMenu if ESC pressed
                   escape_count += 1
                   if escape_count % 2 == 0: # if escape pressed again switch to GameState again
@@ -432,26 +446,23 @@ def game_loop():
             if event.type == pygame.QUIT:
                 currState = None
         if currState == None:
-            save_achievements(achievement_lst)
+            save_achievements()
             break
         if currState.__class__ == GameState:
             if start_time == 0:
                 start_time = time.time()
             achievement_lst[0].condition = time.time() - start_time
-            currState.update(enemies,spawn,bullets)
-            player.movement(mouse_pos)
-            calc_meters_walked(player.get_pos())
-            currState.draw(enemies,bullets)
-            player.draw()
-            achievement_unlocked()
+            currState.update(gameobjectmanager)
+            currState.draw(gameobjectmanager)
         else:
             start_time = time.time() - achievement_lst[0].condition
             currState.draw()
         pygame.display.update()
+        print(achievement_lst[0].condition)
     pygame.quit()
 
 
-def save_achievements(achievement_lst):
+def save_achievements():
     """
     Goes through the achievement list and saves all important infos
     in a .txt file separated by ,
@@ -462,7 +473,7 @@ def save_achievements(achievement_lst):
         file.close()
 
 
-def load_achievements(achievement_lst):
+def load_achievements():
     """
     After saving the achievement infos we can retrieve them with the load function.
     Herefor we go through the .txt file and split the line whenever there is a , and we put it into a list.
@@ -475,7 +486,7 @@ def load_achievements(achievement_lst):
         with open("achievementsinfo.txt","r") as file:
             for line in file:
                 split_comma = line.split(",")
-                    
+
             for info in range(1,len(split_comma)): #start from 1 because at index 0 is ","
                 if info % 3 == 0:
                     achievement_lst[curr_achievement].health = int(split_comma[info])
@@ -486,7 +497,6 @@ def load_achievements(achievement_lst):
     except:
         return None
         
-
 
 if __name__ == "__main__":
     game_loop()
