@@ -65,6 +65,9 @@ class Bullet:
         self.pos.y += self.vel * math.cos(self.angle)
 
     def remove_bullet(self):
+        """
+        Remvoes bullet if its not inside the game screen.
+        """
         try:
             if self.pos.x >= 1000 or self.pos.x <= 0:
                 self.bullets.remove(self)
@@ -315,6 +318,9 @@ class AchievementCreator():
         self.summary = font.render(summary,1,White)
 
     def draw(self):
+        """
+        Draw achievement with colour when its unlocked, without colour when its locked.
+        """
         if self.date == "":
             self.texture = pygame.transform.scale(pygame.image.load(os.path.join("Assets",self.stringlocked)),(50,50))
         if self.date != "":
@@ -350,6 +356,11 @@ def calc_meters_walked(new_pos):
         achievement_lst[1].condition += (distance.x + distance.y) / 100
 
 def achievement_unlocked():
+    """
+    Checks the conditions on which a achievement can be unlocked. We
+    dont check anymore, if the date is set. If date is set the achievement
+    is unlocked.
+    """
     now = datetime.datetime.now()
     for achievement in achievement_lst:
         if achievement.date == "":
@@ -366,15 +377,22 @@ def achievement_unlocked():
                 achievement_unlocked_draw(achievement)
 
 def achievement_unlocked_draw(achievement):
-        offset = (450,380)
-        if achievement.name == "Never Ending Fun":
-            offset = (420,380)
-        Window.blit(font.render("Achievement",1,White),(440,450))
-        Window.blit(font.render(achievement.name,1,White),offset)
-        Window.blit(pygame.transform.scale(pygame.image.load(os.path.join("Assets",achievement.string)),(50,50)),(475,400))
-        achievement.health -= 1
+    """
+    At the point where the achievement is unlocked it gets drawn onto the game screen,
+    while its health is above 0.
+    """ 
+    offset = (450,380)
+    if achievement.name == "Never Ending Fun":
+        offset = (420,380)
+    Window.blit(font.render("Achievement",1,White),(440,450))
+    Window.blit(font.render(achievement.name,1,White),offset)
+    Window.blit(pygame.transform.scale(pygame.image.load(os.path.join("Assets",achievement.string)),(50,50)),(475,400))
+    achievement.health -= 1
 
 def collected_achievements():
+    """
+    Returns the amount of achievements that are already unlocked.
+    """
     count = 0
     for achievement in achievement_lst:
         if achievement.date != "":
@@ -432,6 +450,9 @@ class Gameobjectmanager():
                     self.enemylist[enemy+1].pos.x -= 1
 
     def handle_bullet_enemy_collision(self):
+        """
+        Delete bullets when rectangle of enemy and bullet intersects
+        """
         for bullet in self.bulletlist:
             for enemy in self.enemylist:
                 if bullet.pos.colliderect(enemy.pos):
@@ -514,7 +535,7 @@ def game_loop():
             break
         if currState.__class__ == GameState:
             """
-            start_time is total time, clock time is time played (not saved)
+            start_time is total time played (saved), clock time is time played (not saved)
             """
             global clock_time
             if start_time == 0:
