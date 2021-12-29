@@ -36,7 +36,7 @@ class Button():
         if self.pos.colliderect(self.mouse):
             self.texture.set_alpha(75) # hover effect
             if self.mouse_pressed[0]:
-                currState = self.state
+                currState = self.state # when button pressed change state
                 if self.string == "resume.png": # count also escape count if resume was pressed
                     global escape_count
                     escape_count += 1
