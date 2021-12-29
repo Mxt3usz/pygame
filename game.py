@@ -1,10 +1,12 @@
 import os
 import pygame
+pygame.init()
 import time
 pygame.font.init()
 import math
 from pygame import Vector2
 import datetime
+from pygame import mixer
 Width, Height = 1000,600
 Window = pygame.display.set_mode((Width,Height))
 pygame.display.set_caption("First PyGame")
@@ -19,7 +21,8 @@ escape_count = 0
 Black = (0,0,0)
 day_night_timer = 0
 clock_time = 0
-
+background_music = mixer.music.load(os.path.join("Music","main_music.wav"))
+paused = False
 
 class Button():
 
@@ -224,6 +227,17 @@ class GameState():
 
     def __init__(self):
         self.Background_Image = pygame.transform.scale(pygame.image.load(os.path.join("Assets","snowbackground.png")),(1000,600)).convert()
+        self.set_volume()
+
+    def set_volume(self):
+        try:
+            with open("sliderinfo.txt","r") as file:
+                for info in file:
+                    global background_music
+                    background_music = mixer.music.set_volume((int(info)-360)/250)
+                file.close()
+        except:
+            pass
 
     def update(self,gameobjectmanager):
         gameobjectmanager.update()
@@ -255,37 +269,69 @@ class GameState():
 class OptionsMenu():
 
     def __init__(self):
-        self.Slider_Head = pygame.image.load(os.path.join("Assets","sliderheadred.png"))
+        self.Slider_Head = pygame.image.load(os.path.join("Assets","head.png"))
         self.Slider = pygame.image.load(os.path.join("Assets","sliderred.png"))
         self.slider_selected = False
-        self.slider_rect = pygame.Rect(594,92,self.Slider_Head.get_width(),self.Slider_Head.get_height())
+        self.slider_rect = pygame.Rect(610,97,self.Slider_Head.get_width(),self.Slider_Head.get_height())
+        self.load_slider_pos()
+
+    def save_slider_pos(self):
+        with open("sliderinfo.txt","w") as file:
+            file.write(str(self.slider_rect.x))
+            file.close()
+
+    def load_slider_pos(self):
+        try:
+            with open("sliderinfo.txt","r") as file:
+                for info in file:
+                    self.slider_rect.x = int(info)
+                file.close()
+        except:
+            pass
 
     def draw(self):
+        global paused
         Window.fill(Black)
         Window.blit(self.Slider,(Vector2(365,100)))
         back = Button(pygame.Vector2(450,500),"backbutton.png",MainMenu())
         if in_pause:
             back = Button(pygame.Vector2(450,500),"backbutton.png",GameState())
+            paused = False # we set paused to false because otherwise it would play the music
+                           # for a half second because we switch to GameState and not to PauseMenu
         back.update_button()
         back.draw_button()
         mouse_rect = pygame.Rect(pygame.mouse.get_pos()[0],pygame.mouse.get_pos()[1],1,1)
         text = font.render("Game Volume",1,White)
+        """
+        To get percentage from 0 to 100 we have to make x pos 0 so x pos - 360,
+        by subtracting start and end we get 100% so 610 - 360 = 250.
+        To get percentage we just divide through 250.
+        """
+        percentage = round(((self.slider_rect.x-360) / 250)*100)
+        percent = font.render(str(percentage) + "%",1,White)
         Window.blit(text,(430,50))
-        if(mouse_rect.colliderect(pygame.Rect(self.slider_rect.x-5,self.slider_rect.y,self.slider_rect.width,self.slider_rect.height)) and pygame.mouse.get_pressed()[0]):
+        Window.blit(percent,(630,90))
+        if(mouse_rect.colliderect(pygame.Rect(self.slider_rect.x,self.slider_rect.y,self.slider_rect.width,self.slider_rect.height)) and pygame.mouse.get_pressed()[0]):
             self.slider_selected = True
         if self.slider_selected:
-            if self.slider_rect.x >= 365 and self.slider_rect.x <= 594:
-                self.slider_rect = pygame.Rect(mouse_rect.x,92,self.Slider_Head.get_width(),self.Slider_Head.get_height())
-            if mouse_rect.x >= 370 and mouse_rect.x <= 590:
-                self.slider_rect = pygame.Rect(mouse_rect.x,92,self.Slider_Head.get_width(),self.Slider_Head.get_height())
-            if self.slider_rect.x < 365:
-                self.slider_rect.x = 365
-            if self.slider_rect.x > 594:
-                self.slider_rect.x = 594
+            """
+            Distance check is needed because otherwise you can move slider head
+            by clicking it, but we want it only to move when its being dragged.
+            If distance > slider head with its being dragged.
+            """
+            if Vector2.distance_to(Vector2(mouse_rect.x,mouse_rect.y),Vector2(self.slider_rect.x,self.slider_rect.y)) > 10:
+                self.slider_rect = pygame.Rect(mouse_rect.x,97,self.Slider_Head.get_width(),self.Slider_Head.get_height())
+            """
+            Prevents slider head from exiting slider.
+            """
+            if self.slider_rect.x < 360:
+                self.slider_rect.x = 360
+            if self.slider_rect.x > 610:
+                self.slider_rect.x = 610
         if pygame.mouse.get_pressed()[0] == False:
+            self.save_slider_pos()
             self.slider_selected = False
         Window.blit(self.Slider_Head,(self.slider_rect.x,self.slider_rect.y))
-
 
 class AchievementMenu():
 
@@ -512,8 +558,12 @@ def game_loop():
     global escape_count
     global in_pause
     global shoot
+    global background_music
+    global do_not_unpause
     start_time = 0
     load_achievements()
+    playes = False
+    global paused
     while True:
         clock.tick(Fps)
         for event in pygame.event.get():
@@ -547,12 +597,22 @@ def game_loop():
             day_night_timer = time.time() - clock_time
             currState.update(gameobjectmanager)
             currState.draw(gameobjectmanager)
+
+            if playes == False:
+                background_music = mixer.music.play()
+                playes = True
+            if paused: 
+                background_music = mixer.music.unpause()
         else:
             start_time = time.time() - achievement_lst[0].condition
             clock_time = time.time() - day_night_timer
+
+            if playes:
+                background_music = mixer.music.pause()
+                paused = True
+            
             currState.draw()
         pygame.display.update()
-        
     pygame.quit()
 
 
