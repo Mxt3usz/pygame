@@ -25,6 +25,9 @@ background_music = mixer.music.load(os.path.join("Music","day_music.mp3"))
 paused = False
 day_music_time_played = 0
 night_music_time_played = 0
+hover_sound = mixer.Sound(os.path.join("Music","menu.wav"))
+hit_sound = mixer.Sound(os.path.join("Music","hit.wav"))
+shoot_sound = mixer.Sound(os.path.join("Music","shoot.wav"))
 
 class Button():
 
@@ -32,16 +35,22 @@ class Button():
         self.texture = pygame.image.load(os.path.join("Assets",string))
         self.pos = pygame.Rect(pos.x,pos.y,self.texture.get_width(),self.texture.get_height())
         self.string = string
-        self.mouse = pygame.Rect(pygame.mouse.get_pos()[0],pygame.mouse.get_pos()[1],1,1)
-        self.mouse_pressed = pygame.mouse.get_pressed()
         self.state = state
+        self.played = False
 
     def update_button(self):
         global currState
-        if self.pos.colliderect(self.mouse):
+        if self.pos.colliderect(pygame.Rect(pygame.mouse.get_pos()[0],pygame.mouse.get_pos()[1],1,1)):
+            global hover_sound
+            if self.played == False:
+                hover_sound.play()
+                self.played = True
             self.texture.set_alpha(75) # hover effect
-            if self.mouse_pressed[0]:
-                currState = self.state # when button pressed change state
+            if pygame.mouse.get_pressed()[0]:
+                if self.state != None:
+                    currState = globals()[self.state]() # when button pressed change state
+                else:
+                    currState = self.state
                 if self.string == "resume.png": # count also escape count if resume was pressed
                     global escape_count
                     escape_count += 1
@@ -49,6 +58,9 @@ class Button():
                     global in_pause
                     in_pause = False
                     escape_count += 1
+        else:
+            self.texture.set_alpha(300)
+            self.played = False
         
     def draw_button(self):
         Window.blit(self.texture,self.pos)
@@ -97,6 +109,7 @@ class Enemy:
         self.hp = 48
         self.enemies = enemies
         self.player_pos = player_pos
+        self.healthbar = Healthbar(self)
 
     def set_healthbar(self):
         healthbar = Healthbar(self)
@@ -126,8 +139,7 @@ class Enemy:
         self.is_dead()
 
     def draw(self):
-        if self.hp > 0:
-            self.set_healthbar()
+        self.set_healthbar()
         Window.blit(self.texture,(self.pos.x,self.pos.y))
 
 
@@ -143,6 +155,8 @@ class Player:
         self.mouse_pos = self.pos
         self.curr_mouse_pressed = pygame.mouse.get_pressed()
         self.selected = False
+        self.attacked = False
+        self.invincibility = 0
     
     def get_pos(self):
         return self.pos
@@ -191,8 +205,13 @@ class Player:
             self.in_motion = True
         if dist < 5:
             self.in_motion = False
-    
+
     def draw(self):
+        if self.attacked == True:
+            self.invincibility += 1
+        if self.invincibility == 60:
+            self.attacked = False
+            self.invincibility = 0
         self.set_Healthbar()
         Window.blit(self.texture,(self.pos.x,self.pos.y))
 
@@ -200,31 +219,19 @@ class Healthbar:
     def __init__(self,gameobject):
         self.gameobject = gameobject
         self.texture = pygame.image.load(os.path.join("Assets","healthground.png"))
-        self.healthtexture = pygame.transform.scale(pygame.image.load(os.path.join("Assets","health.png")),(gameobject.hp,3))
+        if gameobject.hp > 0:
+            self.healthtexture = pygame.transform.scale(pygame.image.load(os.path.join("Assets","health.png")),(gameobject.hp,3))
     
     def draw_health(self):
-        if self.gameobject.__class__ == Player:
-            Window.blit(self.texture,(self.gameobject.pos.x,self.gameobject.pos.y - 6))
-            Window.blit(self.healthtexture,(self.gameobject.pos.x + 1,self.gameobject.pos.y - 5))
-        else:
-            Window.blit(self.texture,(self.gameobject.pos.x - 7,self.gameobject.pos.y - 7))
-            Window.blit(self.healthtexture,(self.gameobject.pos.x - 6,self.gameobject.pos.y - 6)) #change healthbar according to enemy.health
+        if self.gameobject.hp > 0:
+            if self.gameobject.__class__ == Player:
+                Window.blit(self.texture,(self.gameobject.pos.x,self.gameobject.pos.y - 6))
+                Window.blit(self.healthtexture,(self.gameobject.pos.x + 1,self.gameobject.pos.y - 5))
+            else:
+                Window.blit(self.texture,(self.gameobject.pos.x - 7,self.gameobject.pos.y - 7))
+                Window.blit(self.healthtexture,(self.gameobject.pos.x - 6,self.gameobject.pos.y - 6)) #change healthbar according to enemy.health
 
-class MainMenu():
-
-    def draw(self):
-        start = Button(pygame.Vector2(450,150),"christmasbutton.png",GameState())
-        options = Button(pygame.Vector2(450,250),"options.png",OptionsMenu())
-        achievement = Button(pygame.Vector2(450,350),"achievements.png",AchievementMenu())
-        exit = Button(pygame.Vector2(450,450),"exit.png",None)
-        buttons = [start,options,achievement,exit]
-        Window.fill(Black)
-        for button in buttons:
-            button.update_button()
-            button.draw_button()
-
-currState = MainMenu()
-        
+    
 class GameState():
 
     def __init__(self):
@@ -235,8 +242,13 @@ class GameState():
         try:
             with open("sliderinfo.txt","r") as file:
                 for info in file:
+                    comma_split = info.split(",")
                     global background_music
-                    background_music = mixer.music.set_volume((int(info)-360)/250)
+                    global hit_sound
+                    global shoot_sound
+                    background_music = mixer.music.set_volume((int(comma_split[0])-360)/250)
+                    hit_sound.set_volume((int(comma_split[1])-360)/250)
+                    shoot_sound.set_volume((int(comma_split[1])-360)/250)
                 file.close()
         except:
             pass
@@ -291,42 +303,22 @@ class GameState():
         achievement_unlocked()
         
 
-class OptionsMenu():
-
-    def __init__(self):
+class SliderHandler():
+    def __init__(self,pos,pos_slider,title,textpos,percentpos):
         self.Slider_Head = pygame.image.load(os.path.join("Assets","head.png"))
         self.Slider = pygame.image.load(os.path.join("Assets","sliderred.png"))
         self.slider_selected = False
-        self.slider_rect = pygame.Rect(610,97,self.Slider_Head.get_width(),self.Slider_Head.get_height())
-        self.load_slider_pos()
-
-    def save_slider_pos(self):
-        with open("sliderinfo.txt","w") as file:
-            file.write(str(self.slider_rect.x))
-            file.close()
-
-    def load_slider_pos(self):
-        try:
-            with open("sliderinfo.txt","r") as file:
-                for info in file:
-                    self.slider_rect.x = int(info)
-                file.close()
-        except:
-            pass
-
+        self.pos = pos
+        self.pos_slider = pos_slider
+        self.title = title
+        self.textpos = textpos
+        self.percentpos = percentpos
+        self.slider_rect = pygame.Rect(pos.x,pos.y,self.Slider_Head.get_width(),self.Slider_Head.get_height())
+     
     def draw(self):
-        global paused
-        Window.fill(Black)
-        Window.blit(self.Slider,(Vector2(365,100)))
-        back = Button(pygame.Vector2(450,500),"backbutton.png",MainMenu())
-        if in_pause:
-            back = Button(pygame.Vector2(450,500),"backbutton.png",GameState())
-            paused = False # we set paused to false because otherwise it would play the music
-                           # for a half second because we switch to GameState and not to PauseMenu
-        back.update_button()
-        back.draw_button()
+        Window.blit(self.Slider,self.pos_slider)
         mouse_rect = pygame.Rect(pygame.mouse.get_pos()[0],pygame.mouse.get_pos()[1],1,1)
-        text = font.render("Game Volume",1,White)
+        text = font.render(self.title,1,White)
         """
         To get percentage from 0 to 100 we have to make x pos 0 so x pos - 360,
         by subtracting start and end we get 100% so 610 - 360 = 250.
@@ -334,8 +326,8 @@ class OptionsMenu():
         """
         percentage = round(((self.slider_rect.x-360) / 250)*100)
         percent = font.render(str(percentage) + "%",1,White)
-        Window.blit(text,(430,50))
-        Window.blit(percent,(630,90))
+        Window.blit(text,self.textpos)
+        Window.blit(percent,self.percentpos)
         if(mouse_rect.colliderect(pygame.Rect(self.slider_rect.x,self.slider_rect.y,self.slider_rect.width,self.slider_rect.height)) and pygame.mouse.get_pressed()[0]):
             self.slider_selected = True
         if self.slider_selected:
@@ -347,9 +339,10 @@ class OptionsMenu():
             if Vector2.distance_to(Vector2(mouse_rect.x,mouse_rect.y),Vector2(self.slider_rect.x+5,self.slider_rect.y+5)) > 7:
                 #some offsets so the slider works more precise
                 if mouse_rect.x > self.slider_rect.x:
-                    self.slider_rect = pygame.Rect(mouse_rect.x-11,97,self.Slider_Head.get_width(),self.Slider_Head.get_height())
+                    self.slider_rect = pygame.Rect(mouse_rect.x-11,self.slider_rect.y,self.Slider_Head.get_width(),self.Slider_Head.get_height())
                 else:
-                    self.slider_rect = pygame.Rect(mouse_rect.x,97,self.Slider_Head.get_width(),self.Slider_Head.get_height())
+                    self.slider_rect = pygame.Rect(mouse_rect.x,self.slider_rect.y,self.Slider_Head.get_width(),self.Slider_Head.get_height())
+            
             """
             Prevents slider head from exiting slider.
             """
@@ -357,12 +350,56 @@ class OptionsMenu():
                 self.slider_rect.x = 360
             if self.slider_rect.x > 610:
                 self.slider_rect.x = 610
+            
         if pygame.mouse.get_pressed()[0] == False:
-            self.save_slider_pos()
             self.slider_selected = False
         Window.blit(self.Slider_Head,(self.slider_rect.x,self.slider_rect.y))
 
+class OptionsMenu():
+
+    def __init__(self):
+        self.back = Button(Vector2(450,500),"backbutton.png","MainMenu")
+        self.game_volume = SliderHandler(Vector2(610,97),Vector2(365,100),"Game Volume",Vector2(430,50),Vector2(630,90))
+        self.effect_volume = SliderHandler(Vector2(610,197),Vector2(365,200),"Effect Volume",Vector2(430,150),Vector2(630,190))
+        self.ui_volume = SliderHandler(Vector2(610,297),Vector2(365,300),"UI Volume",Vector2(430,250),Vector2(630,290))
+        self.load_slider_pos()
+
+    def save_slider_pos(self):
+        with open("sliderinfo.txt","w") as file:
+            file.write(str(self.game_volume.slider_rect.x) + "," + str(self.effect_volume.slider_rect.x) + "," + str(self.ui_volume.slider_rect.x))
+            global hover_sound
+            hover_sound.set_volume((self.ui_volume.slider_rect.x-360)/250)
+            file.close()
+
+    def load_slider_pos(self):
+        try:
+            with open("sliderinfo.txt","r") as file:
+                for info in file:
+                    comma_split = info.split(",")
+                    self.game_volume.slider_rect.x = int(comma_split[0])
+                    self.effect_volume.slider_rect.x = int(comma_split[1])
+                    self.ui_volume.slider_rect.x = int(comma_split[2])
+                file.close()
+        except:
+            pass
+
+    def draw(self):
+        global paused
+        Window.fill(Black)
+        if in_pause:
+            self.back.state = "GameState"
+            paused = False # we set paused to false because otherwise it would play the music
+                           # for a half second because we switch to GameState and not to PauseMenu
+        self.back.update_button()
+        self.back.draw_button()
+        self.game_volume.draw()
+        self.effect_volume.draw()
+        self.ui_volume.draw()
+        self.save_slider_pos()
+
 class AchievementMenu():
+    def __init__(self):
+        self.back = Button(pygame.Vector2(450,550),"backbutton.png","MainMenu")
 
     def draw(self):
         Window.fill(Black)
@@ -372,12 +409,44 @@ class AchievementMenu():
         Window.blit(font.render(str(collected_achievements()) + " out of 4 " +"Achievements unlocked",1,White),(590,10))
         Window.blit(font.render(str(collected_achievements()/0.04)+ "%",1,White),(885,35))
         Window.blit(font.render("Total play time : " + str(math.floor((achievement_lst[0].condition/60))/100)+" h",1,White),(50,10))
-        back = Button(pygame.Vector2(450,550),"backbutton.png",MainMenu())
-        back.update_button()
-        back.draw_button()
+        self.back.update_button()
+        self.back.draw_button()
         for achievement in achievement_lst:
             achievement.draw()
-        
+
+class PauseMenu():
+    def __init__(self):
+        self.resume = Button(pygame.Vector2(450,200),"resume.png","GameState")
+        self.options = Button(pygame.Vector2(450,300),"options.png","OptionsMenu")
+        self.menu = Button(pygame.Vector2(450,400),"menubutton.png","MainMenu")
+
+    def draw(self):
+        Window.blit(pygame.image.load(os.path.join("Assets","pause.png")),(350,50))
+        lst = [self.resume,self.options,self.menu]
+        for button in lst:
+            button.update_button()
+            button.draw_button()  
+
+
+class GameOver():
+    def __init__(self):
+        pass
+
+class MainMenu():
+    def __init__(self):
+        self.start = Button(pygame.Vector2(450,150),"christmasbutton.png","GameState")
+        self.options = Button(pygame.Vector2(450,250),"options.png","OptionsMenu")
+        self.achievement = Button(pygame.Vector2(450,350),"achievements.png","AchievementMenu")
+        self.exit = Button(pygame.Vector2(450,450),"exit.png",None)
+
+    def draw(self):
+        buttons = [self.start,self.options,self.achievement,self.exit]
+        Window.fill(Black)
+        for button in buttons:
+            button.update_button()
+            button.draw_button()
+
+currState = MainMenu()
 
 class AchievementCreator():
 
@@ -481,37 +550,27 @@ curr_pos = Vector2(300,250)
 achievement_lst = [AchievementCreator("hourglassLockedD.png","hourglassS.png",Vector2(100,150),0,"",100,"Never Ending Fun","Play for 1 minute."),AchievementCreator("olympiclocked.png","olympic.png",Vector2(100,250),0,"",100,"Marathon","Walk for 1000 meters.")
 ,AchievementCreator("moon50locked.png","moon50.png",Vector2(100,350),0,"",100,"Survivor","Survive 3 nights."),AchievementCreator("skelletheadlocked.png","skelletevil.png",Vector2(100,450),0,"",100,"Oppressor","Kill 50 skelletons.")]
 
-class PauseMenu():
-
-    def draw(self):
-        Window.blit(pygame.image.load(os.path.join("Assets","pause.png")),(350,50))
-        resume = Button(pygame.Vector2(450,200),"resume.png",GameState())
-        options = Button(pygame.Vector2(450,300),"options.png",OptionsMenu())
-        menu = Button(pygame.Vector2(450,400),"menubutton.png",MainMenu())
-        lst = [resume,options,menu]
-        for button in lst:
-            button.update_button()
-            button.draw_button()
-
-
 class Gameobjectmanager():
     """
     Handles all the methods from the objects in the game.
     """
     def __init__(self):
         self.bulletlist = []
-        self.player = Player()
+        self.playerlist = [Player()]
         self.enemylist = []
 
 
     def spawn_enemy(self,pos):
-        enemy = Enemy(pos,self.enemylist,self.player.get_pos())
-        self.enemylist += [enemy]
+        for player in self.playerlist:
+            enemy = Enemy(pos,self.enemylist,player.get_pos())
+            self.enemylist += [enemy]
 
     def spawn_bullet(self):
         global shoot
         if shoot and len(self.bulletlist) < 5:
-            self.bulletlist += [Bullet(self.player.get_pos(),pygame.mouse.get_pos(),self.bulletlist)]
+            shoot_sound.play()
+            for player in self.playerlist:
+                self.bulletlist += [Bullet(player.get_pos(),pygame.mouse.get_pos(),self.bulletlist)]
             shoot = False
 
     def handle_collision(self):
@@ -531,24 +590,37 @@ class Gameobjectmanager():
         for bullet in self.bulletlist:
             for enemy in self.enemylist:
                 if bullet.pos.colliderect(enemy.pos):
+                    hit_sound.play()
                     enemy.hp -= 10
                     try:
                         self.bulletlist.remove(bullet)
                     except:
                         pass
 
+    def handle_enemy_player_collision(self):
+        for enemy in self.enemylist:
+            for player in self.playerlist:
+                if enemy.pos.colliderect(player.pos):
+                    if player.attacked == False:
+                        player.hp -= 5
+                        player.attacked = True
+                    if player.hp <= 0:
+                        self.playerlist.remove(player)
+
     def update(self):
         global night
         global day_night_timer
         self.spawn_bullet()
-        self.player.movement()
-        calc_meters_walked(self.player.get_pos())
+        for player in self.playerlist:
+            player.movement()
+            calc_meters_walked(player.get_pos())
         for bullet in self.bulletlist:
             bullet.update()
         for enemy in self.enemylist:
             enemy.update()
         self.handle_collision()
         self.handle_bullet_enemy_collision()
+        self.handle_enemy_player_collision()
         """
         At day spawns every 6 secs one Wave so in total 4 Waves
         """
@@ -571,7 +643,8 @@ class Gameobjectmanager():
             self.spawn_enemy(Vector2(670,600))
 
     def draw(self):
-        self.player.draw()
+        for player in self.playerlist:
+            player.draw()
         for enemy in self.enemylist:
             enemy.draw()
         for bullet in self.bulletlist:
