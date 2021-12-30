@@ -21,8 +21,10 @@ escape_count = 0
 Black = (0,0,0)
 day_night_timer = 0
 clock_time = 0
-background_music = mixer.music.load(os.path.join("Music","main_music.wav"))
+background_music = mixer.music.load(os.path.join("Music","day_music.mp3"))
 paused = False
+day_music_time_played = 0
+night_music_time_played = 0
 
 class Button():
 
@@ -243,11 +245,19 @@ class GameState():
         gameobjectmanager.update()
         
     def draw(self,gameobjectmanager):
+        """
+        If its day the day music is played before we switch to night music, we
+        save the day music pos so if its day again we dont start from begin, same
+        for the night. If the pos we get is bigger than the actual length of the mp3
+        we set the time_played = 0.
+        """
         global currState
         global escape_count
         global night
         global day_night_timer
         global clock_time
+        global day_music_time_played
+        global night_music_time_played
         if escape_count % 2 != 0: # check also if ESC wasnt pressed so for example if options were entered
             currState = PauseMenu() # through pausemenu and back was pressed the pausemenu should still appear
         Window.blit(self.Background_Image, (0,0))
@@ -255,11 +265,26 @@ class GameState():
             Window.fill(Black)
             if night == False:
                 clock_time = 0
+                global background_music
+                day_music_time_played += mixer.music.get_pos()
+                background_music = mixer.music.load(os.path.join("Music","night_music.mp3"))
+                try:
+                    background_music = mixer.music.play(-1,night_music_time_played/1000)
+                except:
+                    night_music_time_played = 0
+                    background_music = mixer.music.play(-1,night_music_time_played/1000)
             night = True
         if night and round(day_night_timer) == 10: #10 secs night
             night = False
             achievement_lst[2].condition += 1
             clock_time = 0
+            night_music_time_played += mixer.music.get_pos()
+            background_music = mixer.music.load(os.path.join("Music","day_music.mp3"))
+            try:
+                background_music = mixer.music.play(-1,day_music_time_played/1000)
+            except:
+                day_music_time_played = 0
+                background_music = mixer.music.play(-1,day_music_time_played)
         mouse = font.render("Mouse: "+ str(pygame.mouse.get_pos()),1,White)
         Window.blit(mouse,(0,0))
         gameobjectmanager.draw()
@@ -318,9 +343,13 @@ class OptionsMenu():
             Distance check is needed because otherwise you can move slider head
             by clicking it, but we want it only to move when its being dragged.
             If distance > slider head with its being dragged.
-            """
-            if Vector2.distance_to(Vector2(mouse_rect.x,mouse_rect.y),Vector2(self.slider_rect.x,self.slider_rect.y)) > 10:
-                self.slider_rect = pygame.Rect(mouse_rect.x,97,self.Slider_Head.get_width(),self.Slider_Head.get_height())
+            """                                                                              #mid of slider head
+            if Vector2.distance_to(Vector2(mouse_rect.x,mouse_rect.y),Vector2(self.slider_rect.x+5,self.slider_rect.y+5)) > 7:
+                #some offsets so the slider works more precise
+                if mouse_rect.x > self.slider_rect.x:
+                    self.slider_rect = pygame.Rect(mouse_rect.x-11,97,self.Slider_Head.get_width(),self.Slider_Head.get_height())
+                else:
+                    self.slider_rect = pygame.Rect(mouse_rect.x,97,self.Slider_Head.get_width(),self.Slider_Head.get_height())
             """
             Prevents slider head from exiting slider.
             """
@@ -559,7 +588,6 @@ def game_loop():
     global in_pause
     global shoot
     global background_music
-    global do_not_unpause
     start_time = 0
     load_achievements()
     playes = False
@@ -599,7 +627,7 @@ def game_loop():
             currState.draw(gameobjectmanager)
 
             if playes == False:
-                background_music = mixer.music.play()
+                background_music = mixer.music.play(-1)
                 playes = True
             if paused: 
                 background_music = mixer.music.unpause()
