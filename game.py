@@ -464,8 +464,12 @@ class StatsMenu():
         offset = 30
         Window.blit(font.render("Time survived     Meters walked      Nights survived      Skellets killed      Total score",1,White),(30,offset))
         for info in range(len(self.stats)):
-            offset += 50
-            Window.blit(font.render(self.stats[info][0] + "                        " + self.stats[info][1]  + "                           " + self.stats[info][2]  + "                             " + self.stats[info][3]  + "                               " + self.stats[info][4],1,White),(30,offset))
+            offset += 50 #29
+            Window.blit(font.render(self.stats[info][0],1,White),(30,offset))
+            Window.blit(font.render(self.stats[info][1],1,White),(215,offset))
+            Window.blit(font.render(self.stats[info][2],1,White),(412,offset))
+            Window.blit(font.render(self.stats[info][3],1,White),(626,offset))
+            Window.blit(font.render(self.stats[info][4],1,White),(843,offset))
         offset = 50
 
 class GameOver():
