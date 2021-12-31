@@ -8,3 +8,4 @@ Note that you only can play this game, if you have installed the pygame module.
 - E to shoot in mouse direction
 - ESC to open Pause Menu ingame
 -----------------------------------
+Noticed some weird crashes but do not know the cause of those.
