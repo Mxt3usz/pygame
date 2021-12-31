@@ -1,6 +1,5 @@
 import os
 import pygame
-from pygame.transform import scale
 pygame.init()
 import time
 pygame.font.init()
@@ -62,6 +61,8 @@ class Button():
                     global night_music_time_played
                     global curr_scores
                     global day_night_timer
+                    global night 
+                    night = False
                     day_night_timer = 0
                     day_music_time_played = 0
                     night_music_time_played = 0
@@ -429,9 +430,9 @@ class AchievementMenu():
 
 class PauseMenu():
     def __init__(self):
-        self.resume = Button(Vector2(450,200),"resume.png","GameState()")
+        self.resume = Button(Vector2(450,220),"resume.png","GameState()")
         self.options = Button(Vector2(450,300),"options.png","OptionsMenu()")
-        self.menu = Button(Vector2(450,400),"menubutton.png","MainMenu()")
+        self.menu = Button(Vector2(450,380),"menubutton.png","MainMenu()")
 
     def draw(self):
         Window.blit(pygame.image.load(os.path.join("Assets","pause.png")),(350,50))
@@ -500,7 +501,7 @@ class GameOver():
         if yes we add it to sorted_collect_stats hereby we can simple sort the lists by their scores descending.
         After this we write the newly gathered sorted lists into a new .txt and load it everytime we go into the StatsMenu.
         What I additonally added : method checks if the score is already in the sorted, if yes it waits till the end of the for loop,
-        if its till then not added, we add it anyways because otherwise we only have 9 scores. I have to add the collects_stats[stat] check,
+        if its till then not added, we add it anyways. I have to add the collects_stats[stat] check,
         because otherwise, he could pick the wrong score, because if both have 198 but they diff in the first 2 attributes, the first score in the unsorted list still gets picked first.
         With not in sorted.., he still checks for stats with same score after the current looked score.
         """
@@ -558,11 +559,11 @@ class GameOver():
 
 class MainMenu():
     def __init__(self):
-        self.start = Button(Vector2(450,50),"christmasbutton.png","GameState()")
-        self.options = Button(Vector2(450,150),"options.png","OptionsMenu()")
+        self.start = Button(Vector2(450,150),"christmasbutton.png","GameState()")
+        self.options = Button(Vector2(450,200),"options.png","OptionsMenu()")
         self.achievement = Button(Vector2(450,250),"achievements.png","AchievementMenu()")
-        self.stats = Button(Vector2(450,350),"stats.png","StatsMenu()")
-        self.exit = Button(Vector2(450,450),"exit.png",None)
+        self.stats = Button(Vector2(450,300),"stats.png","StatsMenu()")
+        self.exit = Button(Vector2(450,350),"exit.png",None)
 
     def draw(self):
         buttons = [self.start,self.options,self.achievement,self.stats,self.exit]
