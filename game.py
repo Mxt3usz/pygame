@@ -500,16 +500,11 @@ class GameOver():
         Because the scores are already sorted, we simple check if the iterating score argument equals the score in the unsorted list at index [4],
         if yes we add it to sorted_collect_stats hereby we can simple sort the lists by their scores descending.
         After this we write the newly gathered sorted lists into a new .txt and load it everytime we go into the StatsMenu.
-        What I additonally added : method checks if the score is already in the sorted, if yes it waits till the end of the for loop,
-        if its till then not added, we add it anyways. I have to add the collects_stats[stat] check,
-        because otherwise, he could pick the wrong score, because if both have 198 but they diff in the first 2 attributes, the first score in the unsorted list still gets picked first.
-        With not in sorted.., he still checks for stats with same score after the current looked score.
         """
         collect_stats = []
         scores = []
         sorted_collect_stats = []
         num_without_newline = ""
-        temp = 0
         with open("statistics.txt","r") as file:
             for stat in file:
                 comma_split = stat.split(",")
@@ -527,14 +522,22 @@ class GameOver():
             if len(scores) > 10:
                 scores = scores[:10]
             for score in scores:
-                was_added = False
                 for stat in range(len(collect_stats)):
+                    """
+                    We only add 1 score for every loop. We check first for the identical score then also if the attribtues correlating to the score
+                    are not in the sorted list, if no we can savely add this score to the list. It can happen that in top 10 are same scores with same attributes.
+                    So lets say one score with 178 is already added with its attributes to sorted list. The second score with 178 would not land
+                    in the first if but in the second if. This would be true because score already in sorted and attributes,result is saved in a temp.
+                    If it meets another score with 178 with same attributes it overwrites the temp and if then no score with 178 and diff attributes is found it
+                    just gets added to the sorted list.
+                    """
                     if score == collect_stats[stat][4] and collect_stats[stat] not in sorted_collect_stats:
                         sorted_collect_stats += [collect_stats[stat]]
-                        was_added = True
-                    if was_added == False and score == collect_stats[stat][4] and collect_stats[stat] in sorted_collect_stats:
+                        temp = 0
+                        break # add only 1 score per loop
+                    if score == collect_stats[stat][4] and collect_stats[stat] in sorted_collect_stats:
                         temp = collect_stats[stat]
-                if was_added == False:
+                if temp != 0:
                     sorted_collect_stats += [temp]
             file.close()
             with open("statistics_sorted.txt","w") as file:
