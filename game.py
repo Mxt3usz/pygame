@@ -1,5 +1,6 @@
 import os
 import pygame
+from pygame.transform import scale
 pygame.init()
 import time
 pygame.font.init()
@@ -14,6 +15,8 @@ White = (255,255,255)
 Red = (255,0,0)
 Fps = 60
 font = pygame.font.Font("upheavtt.ttf",20)
+game_over_font = pygame.font.Font("upheavtt.ttf",60)
+score_font = pygame.font.Font("upheavtt.ttf",40)
 in_pause = False
 shoot = False
 night = False
@@ -21,6 +24,7 @@ escape_count = 0
 Black = (0,0,0)
 day_night_timer = 0
 clock_time = 0
+actual_time = 0
 background_music = mixer.music.load(os.path.join("Music","day_music.mp3"))
 paused = False
 day_music_time_played = 0
@@ -28,6 +32,7 @@ night_music_time_played = 0
 hover_sound = mixer.Sound(os.path.join("Music","menu.wav"))
 hit_sound = mixer.Sound(os.path.join("Music","hit.wav"))
 shoot_sound = mixer.Sound(os.path.join("Music","shoot.wav"))
+gameobjectmanager = None
 
 class Button():
 
@@ -47,12 +52,26 @@ class Button():
                 self.played = True
             self.texture.set_alpha(75) # hover effect
             if pygame.mouse.get_pressed()[0]:
+                if currState.__class__ == GameOver:
+                    global escape_count
+                    escape_count -= 1
+                    global gameobjectmanager
+                    gameobjectmanager = Gameobjectmanager() #reset game if game over
+                    global background_music
+                    global day_music_time_played
+                    global night_music_time_played
+                    global curr_scores
+                    global day_night_timer
+                    day_night_timer = 0
+                    day_music_time_played = 0
+                    night_music_time_played = 0
+                    background_music = mixer.music.rewind()
+                    curr_scores = [0,0,0,0]
                 if self.state != None:
-                    currState = globals()[self.state]() # when button pressed change state
+                    currState = eval(self.state)# when button pressed change state
                 else:
                     currState = self.state
                 if self.string == "resume.png": # count also escape count if resume was pressed
-                    global escape_count
                     escape_count += 1
                 if self.string == "menubutton.png":
                     global in_pause
@@ -111,13 +130,8 @@ class Enemy:
         self.player_pos = player_pos
         self.healthbar = Healthbar(self)
 
-    def set_healthbar(self):
-        healthbar = Healthbar(self)
-        healthbar.draw_health()
-
     def get_pos(self):
         return Vector2(self.pos.x,self.pos.y)
-
 
     def move(self):
         """
@@ -132,6 +146,7 @@ class Enemy:
     def is_dead(self):
         if self.hp <= 0:
             achievement_lst[3].condition += 1
+            curr_scores[3] += 1
             self.enemies.remove(self)
 
     def update(self):
@@ -139,7 +154,7 @@ class Enemy:
         self.is_dead()
 
     def draw(self):
-        self.set_healthbar()
+        self.healthbar.draw_health()
         Window.blit(self.texture,(self.pos.x,self.pos.y))
 
 
@@ -157,13 +172,10 @@ class Player:
         self.selected = False
         self.attacked = False
         self.invincibility = 0
+        self.healthbar = Healthbar(self)
     
     def get_pos(self):
         return self.pos
-
-    def set_Healthbar(self):
-        healthbar = Healthbar(self)
-        healthbar.draw_health()
 
     def movement(self):
         """
@@ -209,27 +221,26 @@ class Player:
     def draw(self):
         if self.attacked == True:
             self.invincibility += 1
-        if self.invincibility == 60:
+        if self.invincibility == 30:
             self.attacked = False
             self.invincibility = 0
-        self.set_Healthbar()
+        self.healthbar.draw_health()
         Window.blit(self.texture,(self.pos.x,self.pos.y))
 
 class Healthbar:
     def __init__(self,gameobject):
         self.gameobject = gameobject
         self.texture = pygame.image.load(os.path.join("Assets","healthground.png"))
-        if gameobject.hp > 0:
-            self.healthtexture = pygame.transform.scale(pygame.image.load(os.path.join("Assets","health.png")),(gameobject.hp,3))
+        self.healthtexture = pygame.image.load(os.path.join("Assets","health.png"))
     
     def draw_health(self):
         if self.gameobject.hp > 0:
             if self.gameobject.__class__ == Player:
                 Window.blit(self.texture,(self.gameobject.pos.x,self.gameobject.pos.y - 6))
-                Window.blit(self.healthtexture,(self.gameobject.pos.x + 1,self.gameobject.pos.y - 5))
+                Window.blit(pygame.transform.scale(self.healthtexture,(self.gameobject.hp,3)),(self.gameobject.pos.x + 1,self.gameobject.pos.y - 5))
             else:
                 Window.blit(self.texture,(self.gameobject.pos.x - 7,self.gameobject.pos.y - 7))
-                Window.blit(self.healthtexture,(self.gameobject.pos.x - 6,self.gameobject.pos.y - 6)) #change healthbar according to enemy.health
+                Window.blit(pygame.transform.scale(self.healthtexture,(self.gameobject.hp,3)),(self.gameobject.pos.x - 6,self.gameobject.pos.y - 6)) #change healthbar according to enemy.health
 
     
 class GameState():
@@ -289,6 +300,7 @@ class GameState():
         if night and round(day_night_timer) == 10: #10 secs night
             night = False
             achievement_lst[2].condition += 1
+            curr_scores[2] += 1
             clock_time = 0
             night_music_time_played += mixer.music.get_pos()
             background_music = mixer.music.load(os.path.join("Music","day_music.mp3"))
@@ -358,7 +370,9 @@ class SliderHandler():
 class OptionsMenu():
 
     def __init__(self):
-        self.back = Button(Vector2(450,500),"backbutton.png","MainMenu")
+        self.back = Button(Vector2(450,500),"backbutton.png","MainMenu()")
+        if in_pause:
+            self.back = Button(Vector2(450,500),"backbutton.png","GameState()")
         self.game_volume = SliderHandler(Vector2(610,97),Vector2(365,100),"Game Volume",Vector2(430,50),Vector2(630,90))
         self.effect_volume = SliderHandler(Vector2(610,197),Vector2(365,200),"Effect Volume",Vector2(430,150),Vector2(630,190))
         self.ui_volume = SliderHandler(Vector2(610,297),Vector2(365,300),"UI Volume",Vector2(430,250),Vector2(630,290))
@@ -387,7 +401,6 @@ class OptionsMenu():
         global paused
         Window.fill(Black)
         if in_pause:
-            self.back.state = "GameState"
             paused = False # we set paused to false because otherwise it would play the music
                            # for a half second because we switch to GameState and not to PauseMenu
         self.back.update_button()
@@ -399,7 +412,7 @@ class OptionsMenu():
 
 class AchievementMenu():
     def __init__(self):
-        self.back = Button(pygame.Vector2(450,550),"backbutton.png","MainMenu")
+        self.back = Button(Vector2(450,550),"backbutton.png","MainMenu()")
 
     def draw(self):
         Window.fill(Black)
@@ -416,9 +429,9 @@ class AchievementMenu():
 
 class PauseMenu():
     def __init__(self):
-        self.resume = Button(pygame.Vector2(450,200),"resume.png","GameState")
-        self.options = Button(pygame.Vector2(450,300),"options.png","OptionsMenu")
-        self.menu = Button(pygame.Vector2(450,400),"menubutton.png","MainMenu")
+        self.resume = Button(Vector2(450,200),"resume.png","GameState()")
+        self.options = Button(Vector2(450,300),"options.png","OptionsMenu()")
+        self.menu = Button(Vector2(450,400),"menubutton.png","MainMenu()")
 
     def draw(self):
         Window.blit(pygame.image.load(os.path.join("Assets","pause.png")),(350,50))
@@ -428,19 +441,127 @@ class PauseMenu():
             button.draw_button()  
 
 
-class GameOver():
+class StatsMenu():
     def __init__(self):
-        pass
+        self.back = Button(Vector2(450,560),"backbutton.png","MainMenu()")
+        self.stats = []
+        self.load_statistics()
+    
+    def load_statistics(self):
+        try:
+            with open("statistics_sorted.txt","r") as file:
+                for listobj in file:
+                    comma_split = listobj.split(":")
+                    for lists in comma_split:
+                        self.stats += [eval(lists)]
+        except:
+            pass
+            
+    def draw(self):
+        Window.fill(Black)
+        self.back.update_button()
+        self.back.draw_button()
+        offset = 30
+        Window.blit(font.render("Time survived     Meters walked      Nights survived      Skellets killed      Total score",1,White),(30,offset))
+        for info in range(len(self.stats)):
+            offset += 50
+            Window.blit(font.render(self.stats[info][0] + "                        " + self.stats[info][1]  + "                           " + self.stats[info][2]  + "                             " + self.stats[info][3]  + "                               " + self.stats[info][4],1,White),(30,offset))
+        offset = 50
+
+class GameOver():
+    """
+    After the game is lost we savedthe collected score.
+    """
+    def __init__(self):
+        self.main_menu = Button(pygame.Vector2(455,480),"menubutton.png","MainMenu()")
+        self.score = round(curr_scores[2]*(curr_scores[0]*(curr_scores[1] + curr_scores[3])))
+        if self.score == 0:
+            self.score = round(curr_scores[0]*(curr_scores[1] + curr_scores[3]))
+        self.save_statistics()
+        self.sort_statistics() 
+        
+    def save_statistics(self):
+        with open("statistics.txt","a") as file:
+            file.write(str(round(curr_scores[0])) + "," + str(round(curr_scores[1])) + "," + str(curr_scores[2]) + "," + str(curr_scores[3]) + "," + str(self.score) +"\n")
+            file.close()
+
+    def sort_statistics(self):
+        """
+        So first we go through the unsorted .txt and collect the lists in collect_stats.
+        To sort the actual lists in collect_stats we first sort the scores.
+        After we sorted the scores descending, we first check if the sorted list is bigger than 10
+        if yes we cut it to 10, so we just get the top 10 scores.
+        After that we can simply go through the sorted score list and the unsorted collect_stats containing the list with the stats.
+        Because the scores are already sorted, we simple check if the iterating score argument equals the score in the unsorted list at index [4],
+        if yes we add it to sorted_collect_stats hereby we can simple sort the lists by their scores descending.
+        After this we write the newly gathered sorted lists into a new .txt and load it everytime we go into the StatsMenu.
+        What I additonally added : method checks if the score is already in the sorted, if yes it waits till the end of the for loop,
+        if its till then not added, we add it anyways because otherwise we only have 9 scores. I have to add the collects_stats[stat] check,
+        because otherwise, he could pick the wrong score, because if both have 198 but they diff in the first 2 attributes, the first score in the unsorted list still gets picked first.
+        With not in sorted.., he still checks for stats with same score after the current looked score.
+        """
+        collect_stats = []
+        scores = []
+        sorted_collect_stats = []
+        num_without_newline = ""
+        temp = 0
+        with open("statistics.txt","r") as file:
+            for stat in file:
+                comma_split = stat.split(",")
+                for number in comma_split[4]:
+                    if number != "\n":
+                        num_without_newline += number
+                comma_split[4] = num_without_newline
+                scores += [num_without_newline]
+                num_without_newline = ""
+                collect_stats += [comma_split]
+            for num in range(len(scores)):
+                for num2 in range(len(scores)):
+                    if int(scores[num]) > int(scores[num2]):
+                        scores[num],scores[num2] = scores[num2],scores[num]
+            if len(scores) > 10:
+                scores = scores[:10]
+            for score in scores:
+                was_added = False
+                for stat in range(len(collect_stats)):
+                    if score == collect_stats[stat][4] and collect_stats[stat] not in sorted_collect_stats:
+                        sorted_collect_stats += [collect_stats[stat]]
+                        was_added = True
+                    if was_added == False and score == collect_stats[stat][4] and collect_stats[stat] in sorted_collect_stats:
+                        temp = collect_stats[stat]
+                if was_added == False:
+                    sorted_collect_stats += [temp]
+            file.close()
+            with open("statistics_sorted.txt","w") as file:
+                for sorted in sorted_collect_stats:
+                    if sorted == sorted_collect_stats[-1]:
+                        file.write(str(sorted))
+                    else:
+                        file.write(str(sorted) + ":")
+                file.close()
+
+
+    def draw(self):
+        Window.fill(Black)
+        Window.blit(game_over_font.render("GAME OVER",1,White),(350,100))
+        Window.blit(font.render("Time survived: " + str(round(curr_scores[0])) + " secs",1,White),(350,250))
+        Window.blit(font.render("Meters walked: " + str(round(curr_scores[1])) + " m",1,White),(350,300))
+        Window.blit(font.render("Nights survived: " + str(curr_scores[2]),1,White),(350,350))
+        Window.blit(font.render("Skellets killed: " + str(curr_scores[3]),1,White),(350,400))
+        Window.blit(score_font.render("Score: " + str(self.score),1,White),(420,170))
+        self.main_menu.update_button()
+        self.main_menu.draw_button()
 
 class MainMenu():
     def __init__(self):
-        self.start = Button(pygame.Vector2(450,150),"christmasbutton.png","GameState")
-        self.options = Button(pygame.Vector2(450,250),"options.png","OptionsMenu")
-        self.achievement = Button(pygame.Vector2(450,350),"achievements.png","AchievementMenu")
-        self.exit = Button(pygame.Vector2(450,450),"exit.png",None)
+        self.start = Button(Vector2(450,50),"christmasbutton.png","GameState()")
+        self.options = Button(Vector2(450,150),"options.png","OptionsMenu()")
+        self.achievement = Button(Vector2(450,250),"achievements.png","AchievementMenu()")
+        self.stats = Button(Vector2(450,350),"stats.png","StatsMenu()")
+        self.exit = Button(Vector2(450,450),"exit.png",None)
 
     def draw(self):
-        buttons = [self.start,self.options,self.achievement,self.exit]
+        buttons = [self.start,self.options,self.achievement,self.stats,self.exit]
         Window.fill(Black)
         for button in buttons:
             button.update_button()
@@ -498,6 +619,7 @@ def calc_meters_walked(new_pos):
             distance.y *= -1
         curr_pos = Vector2(new_pos.x,new_pos.y)
         achievement_lst[1].condition += (distance.x + distance.y) / 100
+        curr_scores[1] += (distance.x + distance.y) / 100
 
 def achievement_unlocked():
     """
@@ -547,6 +669,7 @@ def collected_achievements():
 AchievementGlobals
 """
 curr_pos = Vector2(300,250)
+curr_scores = [0,0,0,0]
 achievement_lst = [AchievementCreator("hourglassLockedD.png","hourglassS.png",Vector2(100,150),0,"",100,"Never Ending Fun","Play for 1 minute."),AchievementCreator("olympiclocked.png","olympic.png",Vector2(100,250),0,"",100,"Marathon","Walk for 1000 meters.")
 ,AchievementCreator("moon50locked.png","moon50.png",Vector2(100,350),0,"",100,"Survivor","Survive 3 nights."),AchievementCreator("skelletheadlocked.png","skelletevil.png",Vector2(100,450),0,"",100,"Oppressor","Kill 50 skelletons.")]
 
@@ -598,6 +721,7 @@ class Gameobjectmanager():
                         pass
 
     def handle_enemy_player_collision(self):
+        global currState
         for enemy in self.enemylist:
             for player in self.playerlist:
                 if enemy.pos.colliderect(player.pos):
@@ -606,6 +730,7 @@ class Gameobjectmanager():
                         player.attacked = True
                     if player.hp <= 0:
                         self.playerlist.remove(player)
+                        currState = GameOver()
 
     def update(self):
         global night
@@ -650,11 +775,23 @@ class Gameobjectmanager():
         for bullet in self.bulletlist:
             bullet.draw()
 
+def set_ui_sound():
+    try:
+        with open("sliderinfo.txt","r") as file:
+            for info in file:
+                comma_split = info.split(",")            
+                hover_sound.set_volume((int(comma_split[2])-360)/250)
+                print("lul")
+                file.close()
+    except:
+        pass
+
 def game_loop():
     """
     Simple game loop which handles keyboard input and in which state the player currently is.
     """
     clock = pygame.time.Clock()
+    global gameobjectmanager
     gameobjectmanager = Gameobjectmanager()
     global currState
     global escape_count
@@ -663,6 +800,7 @@ def game_loop():
     global background_music
     start_time = 0
     load_achievements()
+    set_ui_sound()
     playes = False
     global paused
     while True:
@@ -689,15 +827,22 @@ def game_loop():
             start_time is total time played (saved), clock time is time played (not saved)
             """
             global clock_time
+            global actual_time
+            global day_night_timer
             if start_time == 0:
                 start_time = time.time()
             if clock_time == 0:
                 clock_time = time.time()
+            if actual_time == 0:
+                actual_time = time.time()
+
             achievement_lst[0].condition = time.time() - start_time
-            global day_night_timer
             day_night_timer = time.time() - clock_time
+            curr_scores[0] = time.time() - actual_time
+
             currState.update(gameobjectmanager)
-            currState.draw(gameobjectmanager)
+            if currState.__class__ != GameOver:
+                currState.draw(gameobjectmanager)
 
             if playes == False:
                 background_music = mixer.music.play(-1)
@@ -707,6 +852,7 @@ def game_loop():
         else:
             start_time = time.time() - achievement_lst[0].condition
             clock_time = time.time() - day_night_timer
+            actual_time = time.time() - curr_scores[0]
 
             if playes:
                 background_music = mixer.music.pause()
@@ -751,7 +897,7 @@ def load_achievements():
             file.close()
     except:
         pass
-        
+
 
 if __name__ == "__main__":
     game_loop()
